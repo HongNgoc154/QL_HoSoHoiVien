@@ -1,0 +1,20 @@
+package util;
+
+import model.TaiKhoan;
+
+public class Session {
+
+    private static TaiKhoan currentUser;
+
+    public static void setUser(TaiKhoan user){
+        currentUser = user;
+    }
+
+    public static TaiKhoan getUser(){
+        return currentUser;
+    }
+
+    public static void clear(){
+        currentUser = null;
+    }
+}
