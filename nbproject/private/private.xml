@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project-private xmlns="http://www.netbeans.org/ns/project-private/1">
+    <editor-bookmarks xmlns="http://www.netbeans.org/ns/editor-bookmarks/2" lastBookmarkId="0"/>
+    <open-files xmlns="http://www.netbeans.org/ns/projectui-open-files/2">
+        <group>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/ud_quanlyhosohoivien/UD_QuanLyHoSoHoiVien.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/DAO/HoiVienDAO.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/database/DatabaseHelper.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/Main/Main.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/View/MainForm.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/View/HoiVienForm.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/View/HoatDongForm.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/View/ThamGiaForm.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/View/NhatKyForm.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/Model/HoiVien.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/Controller/HoiVienController.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/Model/HoatDong.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/DAO/HoatDongDAO.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/Controller/HoatDongController.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/Model/NhanVien.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/Model/ThamGia.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/Model/NhatKy.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/DAO/NhanVienDAO.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/DAO/ThamGiaDAO.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/DAO/NhatKyDAO.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/Controller/NhanVienController.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/Controller/ThamGiaController.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/View/NhanVienForm.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/Model/TaiKhoan.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/DAO/TaiKhoanDAO.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/Util/Session.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/Controller/AuthController.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/View/LoginForm.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/View/DashboardPanel.java</file>
+            <file>file:/D:/ThucTap_CNTT/UD_QuanLyHoSoHoiVien/UD_QuanLyHoSoHoiVien/src/View/HoiVienDialog.java</file>
+        </group>
+    </open-files>
+</project-private>
