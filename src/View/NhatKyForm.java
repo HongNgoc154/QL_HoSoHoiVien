@@ -12,6 +12,8 @@ public class NhatKyForm extends JPanel {  // ✅ Đổi từ JFrame → JPanel
 
     private JTable table;
     private DefaultTableModel model;
+    private JSpinner fromDate;
+    private JSpinner toDate;
 
     public NhatKyForm() {
         setLayout(new BorderLayout());
@@ -26,6 +28,22 @@ public class NhatKyForm extends JPanel {  // ✅ Đổi từ JFrame → JPanel
         title.setFont(new Font("Segoe UI", Font.BOLD, 22));
         title.setForeground(Color.decode("#1E293B"));
         header.add(title, BorderLayout.WEST);
+        JPanel filter = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        filter.setOpaque(false);
+        fromDate = new JSpinner(new SpinnerDateModel());
+        toDate = new JSpinner(new SpinnerDateModel());
+        JSpinner.DateEditor fromEditor = new JSpinner.DateEditor(fromDate, "yyyy-MM-dd");
+        JSpinner.DateEditor toEditor = new JSpinner.DateEditor(toDate, "yyyy-MM-dd");
+        fromDate.setEditor(fromEditor);
+        toDate.setEditor(toEditor);
+        JButton btnFilter = new JButton("Lọc");
+        btnFilter.addActionListener(e -> loadData());
+        filter.add(new JLabel("Từ ngày"));
+        filter.add(fromDate);
+        filter.add(new JLabel("Đến ngày"));
+        filter.add(toDate);
+        filter.add(btnFilter);
+        header.add(filter, BorderLayout.EAST);
         add(header, BorderLayout.NORTH);
 
         // Table
@@ -100,8 +118,14 @@ public class NhatKyForm extends JPanel {  // ✅ Đổi từ JFrame → JPanel
              PreparedStatement ps = conn.prepareStatement(
                  "SELECT nk.id, nv.tenNhanVien, nk.hanhDong, nk.doiTuong, nk.moTa, nk.thoiGian " +
                  "FROM NhatKyHeThong nk LEFT JOIN NhanVien nv ON nk.idNhanVien = nv.id " +
+                 "WHERE CAST(nk.thoiGian AS DATE) BETWEEN ? AND ? " +
                  "ORDER BY nk.thoiGian DESC");
-             ResultSet rs = ps.executeQuery()) {
+             ) {
+            java.util.Date from = (java.util.Date) fromDate.getValue();
+            java.util.Date to = (java.util.Date) toDate.getValue();
+            ps.setDate(1, new java.sql.Date(from.getTime()));
+            ps.setDate(2, new java.sql.Date(to.getTime()));
+            ResultSet rs = ps.executeQuery();
 
             while (rs.next()) {
                 model.addRow(new Object[]{

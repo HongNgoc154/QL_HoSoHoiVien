@@ -314,8 +314,8 @@ public class MainForm extends JFrame {
                 setContentAreaFilled(false);
                 setBorderPainted(false);
                 setFocusPainted(false);
-                setMaximumSize(new Dimension(230, 48));
-                setPreferredSize(new Dimension(230, 48));
+                setMaximumSize(new Dimension(230, 46));
+                setPreferredSize(new Dimension(230, 46));
                 setAlignmentX(Component.LEFT_ALIGNMENT);
                 setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
                 addMouseListener(new MouseAdapter() {
@@ -339,10 +339,10 @@ public class MainForm extends JFrame {
                 boolean isActive2 = (activeBtn == this);
                 g2.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 16));
                 g2.setColor(isActive2 ? Color.WHITE : new Color(255, 255, 255, 180));
-                g2.drawString(icon, 22, 30);
+                g2.drawString(icon, 22, 29);
                 g2.setFont(isActive2 ? UITheme.FONT_NAV : new Font("Segoe UI", Font.PLAIN, 14));
                 g2.setColor(isActive2 ? Color.WHITE : new Color(255, 255, 255, 180));
-                g2.drawString(label, 56, 30);
+                g2.drawString(label, 56, 29);
             }
         };
         btn.addActionListener(e -> {
