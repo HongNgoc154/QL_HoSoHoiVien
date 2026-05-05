@@ -440,7 +440,7 @@ public class HoatDongForm extends JPanel {
         java.util.List<String> emails = new java.util.ArrayList<>();
 
         PreparedStatement psHv = conn.prepareStatement(
-                "SELECT email FROM HoiVien WHERE email IS NOT NULL AND email<>''"
+                "SELECT email FROM HoiVien WHERE email IS NOT NULL AND email<>'' AND ISNULL(trangThai,N'')<>N'Đã rời'"
         );
         ResultSet hvRs = psHv.executeQuery();
 

@@ -18,6 +18,8 @@ public class MainForm extends JFrame {
     private CardLayout cardLayout;
     private JButton activeBtn = null;
     private JPanel sidebar;
+    private JButton btnBell;
+    private Timer notificationTimer;
 
     // Kiểm tra quyền Admin
     private boolean isAdmin() {
@@ -57,6 +59,7 @@ public class MainForm extends JFrame {
 
         add(contentPanel, BorderLayout.CENTER);
         switchPanel("dashboard");
+        startNotificationAutoRefresh();
     }
 
     // ===== NAVBAR =====
@@ -149,7 +152,7 @@ public class MainForm extends JFrame {
 
         userBtn.addActionListener(e -> popup.show(userBtn, 0, userBtn.getHeight()));
 
-        JButton btnBell = UITheme.outlineButton("🔔 " + getUnreadNotificationCount());
+        btnBell = UITheme.outlineButton("🔔 " + getUnreadNotificationCount());
         btnBell.addActionListener(e -> showNotificationDialog(btnBell));
         right.add(btnBell);
         right.add(roleLabel);
@@ -169,6 +172,7 @@ public class MainForm extends JFrame {
     }
 
     private void showNotificationDialog(JButton btnBell) {
+        refreshNotificationBadge();
         JDialog dlg = new JDialog(this, "Thông báo", true);
         dlg.setSize(560, 400); dlg.setLocationRelativeTo(this);
         DefaultListModel<String> m = new DefaultListModel<>();
@@ -226,6 +230,18 @@ public class MainForm extends JFrame {
         } catch (Exception ex) { JOptionPane.showMessageDialog(d, "Lỗi từ chối: " + ex.getMessage()); }
     }
     
+    
+    private void startNotificationAutoRefresh() {
+        notificationTimer = new Timer(10000, e -> refreshNotificationBadge());
+        notificationTimer.setRepeats(true);
+        notificationTimer.start();
+    }
+
+    private void refreshNotificationBadge() {
+        if (btnBell != null) {
+            btnBell.setText("🔔 " + getUnreadNotificationCount());
+        }
+    }
     
     // ===== SIDEBAR =====
     private JPanel createSidebar() {
@@ -298,8 +314,8 @@ public class MainForm extends JFrame {
                 setContentAreaFilled(false);
                 setBorderPainted(false);
                 setFocusPainted(false);
-                setMaximumSize(new Dimension(230, 46));
-                setPreferredSize(new Dimension(230, 46));
+                setMaximumSize(new Dimension(230, 48));
+                setPreferredSize(new Dimension(230, 48));
                 setAlignmentX(Component.LEFT_ALIGNMENT);
                 setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
                 addMouseListener(new MouseAdapter() {
@@ -313,20 +329,20 @@ public class MainForm extends JFrame {
                 boolean isActive = (activeBtn == this);
                 if (isActive) {
                     g2.setColor(UITheme.BG_SIDEBAR_ACTIVE);
-                    g2.fillRoundRect(8, 2, getWidth()-16, getHeight()-4, 8, 8);
+                    g2.fillRoundRect(10, 4, getWidth()-20, getHeight()-8, 10, 10);
                     g2.setColor(Color.WHITE);
-                    g2.fillRoundRect(0, 10, 4, getHeight()-20, 4, 4);
+                    g2.fillRoundRect(0, 12, 4, getHeight()-24, 4, 4);
                 } else if (hovered) {
                     g2.setColor(new Color(255, 255, 255, 20));
-                    g2.fillRoundRect(8, 2, getWidth()-16, getHeight()-4, 8, 8);
+                    g2.fillRoundRect(10, 4, getWidth()-20, getHeight()-8, 10, 10);
                 }
                 boolean isActive2 = (activeBtn == this);
                 g2.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 16));
                 g2.setColor(isActive2 ? Color.WHITE : new Color(255, 255, 255, 180));
-                g2.drawString(icon, 20, 28);
+                g2.drawString(icon, 22, 30);
                 g2.setFont(isActive2 ? UITheme.FONT_NAV : new Font("Segoe UI", Font.PLAIN, 14));
                 g2.setColor(isActive2 ? Color.WHITE : new Color(255, 255, 255, 180));
-                g2.drawString(label, 50, 29);
+                g2.drawString(label, 56, 30);
             }
         };
         btn.addActionListener(e -> {

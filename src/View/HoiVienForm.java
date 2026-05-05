@@ -5,6 +5,7 @@ import database.DatabaseHelper;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.border.EmptyBorder;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
@@ -15,6 +16,7 @@ import java.io.File;
 import java.sql.*;
 //import java.util.concurrent.ExecutorService;
 //import java.util.concurrent.Executors;
+
 
 public class HoiVienForm extends JPanel {
 
@@ -94,6 +96,7 @@ public class HoiVienForm extends JPanel {
         table.getColumnModel().getColumn(COL_TRANGTHAI).setPreferredWidth(90);
         // Hiển thị cột hình ảnh trong grid
         table.getColumnModel().getColumn(COL_HINHANH).setPreferredWidth(220);
+        table.getColumnModel().getColumn(COL_HINHANH).setCellRenderer(new ImagePathRenderer());
         table.getColumnModel().getColumn(COL_DIACHI).setMinWidth(0);
         table.getColumnModel().getColumn(COL_DIACHI).setMaxWidth(0);
         table.getColumnModel().getColumn(COL_DIACHI).setWidth(0);
@@ -229,7 +232,7 @@ public class HoiVienForm extends JPanel {
         String hinhAnh  = str(model.getValueAt(row, COL_HINHANH));
         String diaChi   = str(model.getValueAt(row, COL_DIACHI));
 
-        JDialog dlg = createDialog("Chi tiết hội viên", 480, 520);
+        JDialog dlg = createDialog("Chi tiết hội viên", 560, 520);
         JPanel content = new JPanel(new BorderLayout());
         content.setBackground(Color.WHITE);
 
@@ -241,7 +244,7 @@ public class HoiVienForm extends JPanel {
         // Avatar + tên
         JPanel topLeft = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
         topLeft.setOpaque(false);
-        JPanel avatarPanel = createAvatarPanel(ten, hinhAnh, 56);
+        JPanel avatarPanel = createAvatarPanel(ten, hinhAnh, 80, 120);
         JPanel namePanel = new JPanel(new BorderLayout());
         namePanel.setOpaque(false);
         JLabel lblTen = new JLabel(ten);
@@ -270,20 +273,20 @@ public class HoiVienForm extends JPanel {
         addDetailRow(info, gc, 3, "Email:",         email);
         addDetailRow(info, gc, 4, "Địa chỉ:",       diaChi);
         addDetailRow(info, gc, 5, "Trạng thái:",    tt);
-        if (!hinhAnh.isEmpty()) {
-            gc.gridx=0; gc.gridy=6; gc.gridwidth=1;
-            JLabel lHa = new JLabel("Hình ảnh:");
-            lHa.setFont(UITheme.FONT_BOLD);
-            lHa.setForeground(UITheme.TEXT_SECONDARY);
-            lHa.setPreferredSize(new Dimension(130, 26));
-            info.add(lHa, gc);
-            gc.gridx=1;
-            JLabel lUrl = new JLabel("<html><a href='" + hinhAnh + "'>" +
-                (hinhAnh.length() > 40 ? hinhAnh.substring(0, 40) + "..." : hinhAnh) + "</a></html>");
-            lUrl.setFont(UITheme.FONT_SMALL);
-            lUrl.setForeground(UITheme.PRIMARY);
-            info.add(lUrl, gc);
-        }
+//        if (!hinhAnh.isEmpty()) {
+//            gc.gridx=0; gc.gridy=6; gc.gridwidth=1;
+//            JLabel lHa = new JLabel("Hình ảnh:");
+//            lHa.setFont(UITheme.FONT_BOLD);
+//            lHa.setForeground(UITheme.TEXT_SECONDARY);
+//            lHa.setPreferredSize(new Dimension(130, 26));
+//            info.add(lHa, gc);
+//            gc.gridx=1;
+//            JLabel lUrl = new JLabel("<html><a href='" + hinhAnh + "'>" +
+//                (hinhAnh.length() > 40 ? hinhAnh.substring(0, 40) + "..." : hinhAnh) + "</a></html>");
+//            lUrl.setFont(UITheme.FONT_SMALL);
+//            lUrl.setForeground(UITheme.PRIMARY);
+//            info.add(lUrl, gc);
+//        }
 
         // Buttons
         JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 10));
@@ -455,6 +458,7 @@ public class HoiVienForm extends JPanel {
                 selectedImagePath[0] = f.getAbsolutePath();
                 lblImgStatus.setText("Đã chọn: " + f.getName());
                 lblImgStatus.setForeground(UITheme.SUCCESS);
+                loadLocalPreview(lblPreview, f);
             }
         });
 
@@ -585,10 +589,10 @@ public class HoiVienForm extends JPanel {
     }
 
     // ========== HELPERS ==========
-    private JPanel createAvatarPanel(String name, String imageUrl, int size) {
+    private JPanel createAvatarPanel(String name, String imageUrl, int width, int height) {
 
     JPanel panel = new JPanel(new BorderLayout());
-    panel.setPreferredSize(new Dimension(size, size));
+    panel.setPreferredSize(new Dimension(width, height));
     panel.setOpaque(false);
 
     JLabel lbl = new JLabel();
@@ -599,7 +603,7 @@ public class HoiVienForm extends JPanel {
             try {
                 BufferedImage img = readImage(imageUrl);
                 if (img != null) {
-                    Image scaled = img.getScaledInstance(size, size, Image.SCALE_SMOOTH);
+                    Image scaled = img.getScaledInstance(width, height, Image.SCALE_SMOOTH);
 
                 SwingUtilities.invokeLater(() -> {
                         lbl.setIcon(new ImageIcon(scaled));
@@ -617,7 +621,7 @@ public class HoiVienForm extends JPanel {
         lbl.setText(name.substring(0,1).toUpperCase());
     }
 
-    lbl.setFont(new Font("Segoe UI", Font.BOLD, size/2));
+    lbl.setFont(new Font("Segoe UI", Font.BOLD, Math.max(24, width/3)));
     lbl.setForeground(UITheme.PRIMARY);
 
     panel.add(lbl);
@@ -735,4 +739,30 @@ public class HoiVienForm extends JPanel {
     }
 
     private String str(Object o) { return o == null ? "" : o.toString(); }
+
+    private class ImagePathRenderer extends DefaultTableCellRenderer {
+        public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+            JLabel lbl = (JLabel) super.getTableCellRendererComponent(table, "", isSelected, hasFocus, row, column);
+            lbl.setHorizontalAlignment(SwingConstants.CENTER);
+            lbl.setIcon(null);
+            String imagePath = str(value);
+            if (imagePath.isEmpty()) {
+                lbl.setText("—");
+                return lbl;
+            }
+            try {
+                BufferedImage img = readImage(imagePath);
+                if (img != null) {
+                    Image scaled = img.getScaledInstance(40, 60, Image.SCALE_SMOOTH); // tỉ lệ 4x6
+                    lbl.setIcon(new ImageIcon(scaled));
+                    lbl.setText("");
+                } else {
+                    lbl.setText("—");
+                }
+            } catch (Exception ex) {
+                lbl.setText("—");
+            }
+            return lbl;
+        }
+    }
 }
