@@ -216,10 +216,11 @@ public class DashboardPanel extends JPanel {
 
         int maxVal = data.values().stream().mapToInt(v -> v).max().orElse(1);
         if (maxVal == 0) maxVal = 1;
+        final int maxChartValue = maxVal;
 
         JPanel chart = new JPanel() {
             final Map<String, Integer> chartData = data;
-            final int max = maxVal;
+            final int max = maxChartValue;
             final Color barColor = color;
 
             protected void paintComponent(Graphics g) {
