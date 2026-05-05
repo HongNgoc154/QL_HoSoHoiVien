@@ -372,6 +372,7 @@ public class HoiVienForm extends JPanel {
 
         // Ảnh panel
         final String[] selectedImageUrl = {""};
+        final boolean[] isUploadingImage = {false};
         JPanel imgPanel = new JPanel(new BorderLayout(10, 0));
         imgPanel.setOpaque(false);
         JLabel lblPreview = new JLabel("Chưa có ảnh") {
@@ -459,6 +460,7 @@ public class HoiVienForm extends JPanel {
                 lblImgStatus.setText("Đang upload...");
                 lblImgStatus.setForeground(UITheme.WARNING);
                 btnChooseImg.setEnabled(false);
+                isUploadingImage[0] = true;
 
                 // Upload background
                 ExecutorService exec = Executors.newSingleThreadExecutor();
@@ -466,13 +468,14 @@ public class HoiVienForm extends JPanel {
                     String url = CloudinaryHelper.uploadImage(f, "hoivien");
                     SwingUtilities.invokeLater(() -> {
                         btnChooseImg.setEnabled(true);
+                        isUploadingImage[0] = false;
                         if (url != null) {
                             selectedImageUrl[0] = url;
                             lblImgStatus.setText("Upload thành công ✓");
                             lblImgStatus.setForeground(UITheme.SUCCESS);
                         } else {
                             // Fallback: lưu path local hoặc thông báo lỗi
-                            lblImgStatus.setText("Upload thất bại. Kiểm tra cấu hình Cloud.");
+                            lblImgStatus.setText("Upload thất bại. Kiểm tra cấu hình Cloudinary.");
                             lblImgStatus.setForeground(UITheme.DANGER);
                             // Giữ preview local, URL rỗng
                         }
@@ -527,6 +530,13 @@ public class HoiVienForm extends JPanel {
                 JOptionPane.showMessageDialog(dlg,
                     "Vui lòng kiểm tra lại:\n" + errors.toString(),
                     "Lỗi nhập liệu", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            
+            if (isUploadingImage[0]) {
+                JOptionPane.showMessageDialog(dlg,
+                    "Ảnh đang upload lên Cloud. Vui lòng chờ upload xong rồi lưu.",
+                    "Đang upload ảnh", JOptionPane.WARNING_MESSAGE);
                 return;
             }
 
