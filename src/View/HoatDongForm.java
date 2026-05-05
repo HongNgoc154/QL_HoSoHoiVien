@@ -10,8 +10,10 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.*;
+import java.awt.datatransfer.StringSelection;
 import java.sql.*;
 import java.text.SimpleDateFormat;
+import Util.EmailSender;
 
 public class HoatDongForm extends JPanel {
 
@@ -235,7 +237,11 @@ public class HoatDongForm extends JPanel {
         btns.setBackground(Color.decode("#F8FAFC"));
         btns.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, UITheme.BORDER_COLOR));
         JButton btnEdit = UITheme.outlineButton("Chỉnh sửa");
+        JButton btnSendMail = UITheme.outlineButton("📧 Gửi email");
+        JButton btnDangKy = UITheme.primaryButton("📝 Đăng ký");
         JButton btnClose = UITheme.primaryButton("Đóng");
+        btns.add(btnSendMail);
+        btns.add(btnDangKy);
         btns.add(btnEdit);
         btns.add(btnClose);
 
@@ -246,6 +252,8 @@ public class HoatDongForm extends JPanel {
 
         btnClose.addActionListener(e -> dlg.dispose());
         btnEdit.addActionListener(e -> { dlg.dispose(); openForm(row); });
+        btnSendMail.addActionListener(e -> sendActivityEmail((int) model.getValueAt(row, 0)));
+        btnDangKy.addActionListener(e -> openRegisterDialog((int) model.getValueAt(row, 0)));
         dlg.setVisible(true);
     }
 
@@ -309,7 +317,7 @@ public class HoatDongForm extends JPanel {
         gc.fill = GridBagConstraints.HORIZONTAL;
 
         JTextField txtTen = fld(), txtLoai = fld(), txtDiaDiem = fld();
-        JTextField txtStart = fld(), txtEnd = fld(), txtMoTa = fld();
+        JTextField txtStart = fld(), txtEnd = fld(), txtMoTa = fld(), txtHanDangKy = fld();
         String[] ttOpts = {"Sắp diễn ra","Đang diễn ra","Đã kết thúc"};
         JComboBox<String> cbTT = new JComboBox<>(ttOpts);
         cbTT.setFont(UITheme.FONT_LABEL);
@@ -328,7 +336,9 @@ public class HoatDongForm extends JPanel {
         addFRow(fields, gc, 2, "Bắt đầu (yyyy-MM-dd HH:mm)", txtStart);
         addFRow(fields, gc, 3, "Kết thúc (yyyy-MM-dd HH:mm)", txtEnd);
         addFRow(fields, gc, 4, "Địa điểm", txtDiaDiem);
-        addFRow(fields, gc, 5, "Trạng thái", cbTT);
+        addFRow(fields, gc, 5, "Mô tả", txtMoTa);
+        addFRow(fields, gc, 6, "Hạn đăng ký (yyyy-MM-dd HH:mm)", txtHanDangKy);
+        addFRow(fields, gc, 7, "Trạng thái", cbTT);
 
         JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 12));
         btns.setBackground(Color.decode("#F8FAFC"));
@@ -350,25 +360,29 @@ public class HoatDongForm extends JPanel {
                 SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
                 if (!isEdit) {
                     PreparedStatement ps = conn.prepareStatement(
-                        "INSERT INTO HoatDong(tenHoatDong,loaiHoatDong,thoiGianBatDau,thoiGianKetThuc,diaDiem,trangThai) VALUES(?,?,?,?,?,?)");
+                         "INSERT INTO HoatDong(tenHoatDong,loaiHoatDong,thoiGianBatDau,thoiGianKetThuc,diaDiem,moTa,hanDangKy,trangThai) VALUES(?,?,?,?,?,?,?,?)");
                     ps.setString(1, txtTen.getText().trim());
                     ps.setString(2, txtLoai.getText().trim());
                     setTs(ps, 3, txtStart.getText().trim(), sdf);
                     setTs(ps, 4, txtEnd.getText().trim(), sdf);
                     ps.setString(5, txtDiaDiem.getText().trim());
-                    ps.setString(6, (String) cbTT.getSelectedItem());
+                    ps.setString(6, txtMoTa.getText().trim());
+                    setTs(ps, 7, txtHanDangKy.getText().trim(), sdf);
+                    ps.setString(8, (String) cbTT.getSelectedItem());
                     ps.executeUpdate();
                 } else {
                     int id = (int) model.getValueAt(row, 0);
                     PreparedStatement ps = conn.prepareStatement(
-                        "UPDATE HoatDong SET tenHoatDong=?,loaiHoatDong=?,thoiGianBatDau=?,thoiGianKetThuc=?,diaDiem=?,trangThai=? WHERE id=?");
+                        "UPDATE HoatDong SET tenHoatDong=?,loaiHoatDong=?,thoiGianBatDau=?,thoiGianKetThuc=?,diaDiem=?,moTa=?,hanDangKy=?,trangThai=? WHERE id=?");
                     ps.setString(1, txtTen.getText().trim());
                     ps.setString(2, txtLoai.getText().trim());
                     setTs(ps, 3, txtStart.getText().trim(), sdf);
                     setTs(ps, 4, txtEnd.getText().trim(), sdf);
                     ps.setString(5, txtDiaDiem.getText().trim());
-                    ps.setString(6, (String) cbTT.getSelectedItem());
-                    ps.setInt(7, id);
+                    ps.setString(6, txtMoTa.getText().trim());
+                    setTs(ps, 7, txtHanDangKy.getText().trim(), sdf);
+                    ps.setString(8, (String) cbTT.getSelectedItem());
+                    ps.setInt(9, id);
                     ps.executeUpdate();
                 }
                 loadTable();
@@ -402,4 +416,111 @@ public class HoatDongForm extends JPanel {
     }
 
     private String str(Object o) { return o == null ? "" : o.toString(); }
+
+    private void sendActivityEmail(int idHoatDong) {
+    String sql = "SELECT * FROM HoatDong WHERE id=?";
+
+    try (Connection conn = DatabaseHelper.getConnection();
+         PreparedStatement ps = conn.prepareStatement(sql)) {
+
+        ps.setInt(1, idHoatDong);
+        ResultSet rs = ps.executeQuery();
+
+        if (!rs.next()) return;
+
+        // Nội dung email
+        String subject = "Thông tin hoạt động: " + rs.getString("tenHoatDong");
+        String body = "Tên hoạt động: " + rs.getString("tenHoatDong")
+                + "\nBắt đầu: " + rs.getString("thoiGianBatDau")
+                + "\nKết thúc: " + rs.getString("thoiGianKetThuc")
+                + "\nĐịa điểm: " + rs.getString("diaDiem")
+                + "\nMô tả: " + rs.getString("moTa");
+
+        // 🔥 Lấy danh sách email trước (QUAN TRỌNG)
+        java.util.List<String> emails = new java.util.ArrayList<>();
+
+        PreparedStatement psHv = conn.prepareStatement(
+                "SELECT email FROM HoiVien WHERE email IS NOT NULL AND email<>''"
+        );
+        ResultSet hvRs = psHv.executeQuery();
+
+        while (hvRs.next()) {
+            emails.add(hvRs.getString("email"));
+        }
+
+        // 🔥 Sau đó mới chạy thread
+        new Thread(() -> {
+            try {
+                for (String email : emails) {
+                    EmailSender.send(email, subject, body);
+
+                    // tránh spam Gmail (rất nên có)
+                    Thread.sleep(500);
+                }
+
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(this,
+                            "Đã gửi email cho " + emails.size() + " hội viên!");
+                });
+
+            } catch (Exception ex) {
+                ex.printStackTrace();
+
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(this,
+                            "Lỗi khi gửi email!");
+                });
+            }
+        }).start();
+
+    } catch (Exception e) {
+        JOptionPane.showMessageDialog(this, "Lỗi gửi email: " + e.getMessage());
+    }
 }
+
+    private void openRegisterDialog(int idHoatDong) {
+        JDialog dlg = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Đăng ký tham gia", true);
+        dlg.setSize(430, 260); dlg.setLocationRelativeTo(this);
+        JPanel p = new JPanel(new GridBagLayout()); p.setBorder(new EmptyBorder(16,16,16,16));
+        GridBagConstraints gc = new GridBagConstraints(); gc.insets = new Insets(5,5,5,5); gc.fill = GridBagConstraints.HORIZONTAL;
+        JTextField txtMa = fld(); JTextField txtTen = fld(); txtTen.setEditable(false);
+        addFRow(p,gc,0,"Mã hội viên *",txtMa); addFRow(p,gc,1,"Tên hội viên",txtTen); addFRow(p,gc,2,"ID hoạt động",new JLabel(String.valueOf(idHoatDong)));
+        JButton btn = UITheme.primaryButton("Gửi đăng ký");
+        gc.gridx=1; gc.gridy=3; p.add(btn,gc); dlg.add(p);
+        txtMa.addKeyListener(new KeyAdapter(){public void keyReleased(KeyEvent e){fillMemberName(txtMa.getText().trim(),txtTen);}});
+        btn.addActionListener(e-> submitTempRegister(idHoatDong, txtMa.getText().trim(), txtTen.getText().trim(), dlg));
+        dlg.setVisible(true);
+    }
+
+    private void fillMemberName(String ma, JTextField txtTen) {
+        try (Connection conn = DatabaseHelper.getConnection();
+             PreparedStatement ps = conn.prepareStatement("SELECT tenHoiVien FROM HoiVien WHERE maHoiVien=?")) {
+            ps.setString(1, ma); ResultSet rs = ps.executeQuery(); txtTen.setText(rs.next()?rs.getString(1):"");
+        } catch (Exception ignored) {}
+    }
+
+    private void submitTempRegister(int idHoatDong, String maHoiVien, String tenHoiVien, JDialog dlg) {
+        if (maHoiVien.isEmpty()) { JOptionPane.showMessageDialog(dlg, "Mã hội viên bắt buộc."); return; }
+        try (Connection conn = DatabaseHelper.getConnection()) {
+            PreparedStatement pHd = conn.prepareStatement("SELECT tenHoatDong, hanDangKy FROM HoatDong WHERE id=?");
+            pHd.setInt(1,idHoatDong); ResultSet hd = pHd.executeQuery(); if(!hd.next()) return;
+            Timestamp han = hd.getTimestamp("hanDangKy");
+            if (han != null && System.currentTimeMillis() > han.getTime()) { JOptionPane.showMessageDialog(dlg, "Hoạt động đã hết hạn đăng ký"); return; }
+            PreparedStatement pHv = conn.prepareStatement("SELECT id, tenHoiVien FROM HoiVien WHERE maHoiVien=?");
+            pHv.setString(1, maHoiVien); ResultSet hv = pHv.executeQuery(); if(!hv.next()){JOptionPane.showMessageDialog(dlg,"Hội viên không tồn tại"); return;}
+            int idHv = hv.getInt("id"); String ten = hv.getString("tenHoiVien");
+            PreparedStatement chk = conn.prepareStatement("SELECT 1 FROM DangKyTam WHERE idHoiVien=? AND idHoatDong=?");
+            chk.setInt(1,idHv); chk.setInt(2,idHoatDong); if(chk.executeQuery().next()){JOptionPane.showMessageDialog(dlg,"Đăng ký trùng."); return;}
+            PreparedStatement ins = conn.prepareStatement("INSERT INTO DangKyTam(idHoiVien,idHoatDong,maHoiVien,trangThai,thoiGianDangKy) VALUES(?,?,?,N'Chờ duyệt',GETDATE())", Statement.RETURN_GENERATED_KEYS);
+            ins.setInt(1,idHv); ins.setInt(2,idHoatDong); ins.setString(3,maHoiVien); ins.executeUpdate();
+            ResultSet keys = ins.getGeneratedKeys(); int idDkt=0; if(keys.next()) idDkt=keys.getInt(1);
+            PreparedStatement tb = conn.prepareStatement("INSERT INTO ThongBao(noiDung,idDangKyTam,daDoc,thoiGian) VALUES(?,?,0,GETDATE())");
+            tb.setString(1, "Hội viên " + ten + " vừa đăng ký hoạt động " + hd.getString("tenHoatDong"));
+            tb.setInt(2,idDkt); tb.executeUpdate();
+            JOptionPane.showMessageDialog(dlg, "Đăng ký thành công, chờ admin duyệt.");
+            dlg.dispose();
+        } catch (Exception ex) { JOptionPane.showMessageDialog(dlg, "Lỗi đăng ký: " + ex.getMessage()); }
+    }
+}
+
+    

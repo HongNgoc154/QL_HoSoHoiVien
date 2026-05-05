@@ -9,6 +9,8 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.*;
+import java.sql.*;
+import database.DatabaseHelper;
 
 public class MainForm extends JFrame {
 
@@ -147,6 +149,9 @@ public class MainForm extends JFrame {
 
         userBtn.addActionListener(e -> popup.show(userBtn, 0, userBtn.getHeight()));
 
+        JButton btnBell = UITheme.outlineButton("🔔 " + getUnreadNotificationCount());
+        btnBell.addActionListener(e -> showNotificationDialog(btnBell));
+        right.add(btnBell);
         right.add(roleLabel);
         right.add(Box.createHorizontalStrut(6));
         right.add(avatar);
@@ -155,6 +160,73 @@ public class MainForm extends JFrame {
         return nav;
     }
 
+    
+    private int getUnreadNotificationCount() {
+        try (Connection conn = DatabaseHelper.getConnection();
+             ResultSet rs = conn.createStatement().executeQuery("SELECT COUNT(*) FROM ThongBao WHERE daDoc=0")) {
+            return rs.next() ? rs.getInt(1) : 0;
+        } catch (Exception e) { return 0; }
+    }
+
+    private void showNotificationDialog(JButton btnBell) {
+        JDialog dlg = new JDialog(this, "Thông báo", true);
+        dlg.setSize(560, 400); dlg.setLocationRelativeTo(this);
+        DefaultListModel<String> m = new DefaultListModel<>();
+        java.util.List<Integer> ids = new java.util.ArrayList<>();
+        try (Connection conn = DatabaseHelper.getConnection();
+             ResultSet rs = conn.createStatement().executeQuery("SELECT id,noiDung,daDoc,thoiGian FROM ThongBao ORDER BY id DESC")) {
+            while (rs.next()) {
+                ids.add(rs.getInt("id"));
+                m.addElement((rs.getBoolean("daDoc") ? "✓ " : "• ") + rs.getString("noiDung") + " | " + rs.getString("thoiGian"));
+            }
+        } catch (Exception e) {}
+        JList<String> list = new JList<>(m);
+        JButton btnDetail = UITheme.primaryButton("Xem chi tiết");
+        btnDetail.addActionListener(e -> { int idx = list.getSelectedIndex(); if(idx>=0) showNotificationDetail(ids.get(idx), dlg, btnBell); });
+        dlg.add(new JScrollPane(list), BorderLayout.CENTER); dlg.add(btnDetail, BorderLayout.SOUTH); dlg.setVisible(true);
+    }
+
+    private void showNotificationDetail(int idThongBao, JDialog parent, JButton btnBell) {
+        try (Connection conn = DatabaseHelper.getConnection()) {
+            PreparedStatement ps = conn.prepareStatement(
+                "SELECT tb.id, tb.noiDung, dkt.id idDangKyTam, dkt.idHoiVien, dkt.idHoatDong, dkt.thoiGianDangKy, hv.tenHoiVien, hv.maHoiVien, hd.tenHoatDong " +
+                "FROM ThongBao tb JOIN DangKyTam dkt ON tb.idDangKyTam=dkt.id " +
+                "JOIN HoiVien hv ON dkt.idHoiVien=hv.id JOIN HoatDong hd ON dkt.idHoatDong=hd.id WHERE tb.id=?");
+            ps.setInt(1, idThongBao); ResultSet rs = ps.executeQuery(); if(!rs.next()) return;
+            conn.createStatement().executeUpdate("UPDATE ThongBao SET daDoc=1 WHERE id=" + idThongBao);
+            JDialog d = new JDialog(this, "Duyệt đăng ký", true); d.setSize(520,320); d.setLocationRelativeTo(this);
+            JTextArea ta = new JTextArea("Hội viên: " + rs.getString("tenHoiVien") + " (" + rs.getString("maHoiVien") + ")\nHoạt động: " + rs.getString("tenHoatDong") + "\nThời gian đăng ký: " + rs.getString("thoiGianDangKy") + "\n\n" + rs.getString("noiDung"));
+            ta.setEditable(false); ta.setLineWrap(true);
+            JButton ok = UITheme.primaryButton("✔ Xác nhận"); JButton no = UITheme.dangerButton("❌ Từ chối");
+            JPanel p = new JPanel(new FlowLayout(FlowLayout.RIGHT)); p.add(no); p.add(ok);
+            int idDkt = rs.getInt("idDangKyTam"), idHv = rs.getInt("idHoiVien"), idHd = rs.getInt("idHoatDong");
+            ok.addActionListener(ev -> approveRegister(idDkt, idHv, idHd, d));
+            no.addActionListener(ev -> rejectRegister(idDkt, d));
+            d.add(new JScrollPane(ta), BorderLayout.CENTER); d.add(p, BorderLayout.SOUTH); d.setVisible(true);
+            btnBell.setText("🔔 " + getUnreadNotificationCount()); parent.dispose();
+        } catch (Exception ignored) {}
+    }
+
+    private void approveRegister(int idDkt, int idHv, int idHd, JDialog d) {
+        try (Connection conn = DatabaseHelper.getConnection()) {
+            PreparedStatement chk = conn.prepareStatement("SELECT 1 FROM ThamGia WHERE idHoiVien=? AND idHoatDong=?");
+            chk.setInt(1,idHv); chk.setInt(2,idHd);
+            if (!chk.executeQuery().next()) {
+                PreparedStatement ins = conn.prepareStatement("INSERT INTO ThamGia(idHoiVien,idHoatDong,trangThai,ngayDangKy) VALUES(?,?,N'Đã đăng ký',GETDATE())");
+                ins.setInt(1,idHv); ins.setInt(2,idHd); ins.executeUpdate();
+            }
+            conn.createStatement().executeUpdate("UPDATE DangKyTam SET trangThai=N'Đã duyệt' WHERE id=" + idDkt);
+            JOptionPane.showMessageDialog(d, "Đã duyệt đăng ký."); d.dispose();
+        } catch (Exception ex) { JOptionPane.showMessageDialog(d, "Lỗi duyệt: " + ex.getMessage()); }
+    }
+    private void rejectRegister(int idDkt, JDialog d) {
+        try (Connection conn = DatabaseHelper.getConnection()) {
+            conn.createStatement().executeUpdate("UPDATE DangKyTam SET trangThai=N'Từ chối' WHERE id=" + idDkt);
+            JOptionPane.showMessageDialog(d, "Đã từ chối đăng ký."); d.dispose();
+        } catch (Exception ex) { JOptionPane.showMessageDialog(d, "Lỗi từ chối: " + ex.getMessage()); }
+    }
+    
+    
     // ===== SIDEBAR =====
     private JPanel createSidebar() {
         JPanel sb = new JPanel() {

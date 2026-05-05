@@ -11,10 +11,10 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
-import java.net.URL;
+//import java.net.URL;
 import java.sql.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+//import java.util.concurrent.ExecutorService;
+//import java.util.concurrent.Executors;
 
 public class HoiVienForm extends JPanel {
 
@@ -92,10 +92,8 @@ public class HoiVienForm extends JPanel {
         table.getColumnModel().getColumn(COL_MA).setPreferredWidth(70);
         table.getColumnModel().getColumn(COL_TEN).setPreferredWidth(160);
         table.getColumnModel().getColumn(COL_TRANGTHAI).setPreferredWidth(90);
-        // Ẩn cột hinhAnh và diaChi khỏi giao diện (vẫn có trong model)
-        table.getColumnModel().getColumn(COL_HINHANH).setMinWidth(0);
-        table.getColumnModel().getColumn(COL_HINHANH).setMaxWidth(0);
-        table.getColumnModel().getColumn(COL_HINHANH).setWidth(0);
+        // Hiển thị cột hình ảnh trong grid
+        table.getColumnModel().getColumn(COL_HINHANH).setPreferredWidth(220);
         table.getColumnModel().getColumn(COL_DIACHI).setMinWidth(0);
         table.getColumnModel().getColumn(COL_DIACHI).setMaxWidth(0);
         table.getColumnModel().getColumn(COL_DIACHI).setWidth(0);
@@ -371,8 +369,7 @@ public class HoiVienForm extends JPanel {
         cbTT.setBackground(Color.WHITE);
 
         // Ảnh panel
-        final String[] selectedImageUrl = {""};
-        final boolean[] isUploadingImage = {false};
+        final String[] selectedImagePath = {""};
         JPanel imgPanel = new JPanel(new BorderLayout(10, 0));
         imgPanel.setOpaque(false);
         JLabel lblPreview = new JLabel("Chưa có ảnh") {
@@ -397,7 +394,7 @@ public class HoiVienForm extends JPanel {
         JLabel lblImgStatus  = new JLabel("(chưa chọn)");
         lblImgStatus.setFont(UITheme.FONT_SMALL);
         lblImgStatus.setForeground(UITheme.TEXT_MUTED);
-        JLabel lblNote = new JLabel("<html><i>Ảnh sẽ được upload lên Cloud</i></html>");
+        JLabel lblNote = new JLabel("<html><i>Ảnh được chọn từ máy của bạn</i></html>");
         lblNote.setFont(UITheme.FONT_SMALL);
         lblNote.setForeground(UITheme.TEXT_MUTED);
 
@@ -418,11 +415,11 @@ public class HoiVienForm extends JPanel {
             txtEmail.setText(str(model.getValueAt(row, COL_EMAIL)));
             txtDiaChi.setText(str(model.getValueAt(row, COL_DIACHI)));
             cbTT.setSelectedItem(str(model.getValueAt(row, COL_TRANGTHAI)));
-            selectedImageUrl[0] = str(model.getValueAt(row, COL_HINHANH));
-            if (!selectedImageUrl[0].isEmpty()) {
+            selectedImagePath[0] = str(model.getValueAt(row, COL_HINHANH));
+            if (!selectedImagePath[0].isEmpty()) {
                 lblImgStatus.setText("Đã có ảnh");
                 lblImgStatus.setForeground(UITheme.SUCCESS);
-                loadImagePreview(lblPreview, selectedImageUrl[0]);
+                loadImagePreview(lblPreview, selectedImagePath[0]);
             }
         } else {
             // Auto-generate mã khi thêm mới
@@ -451,37 +448,13 @@ public class HoiVienForm extends JPanel {
             fc.setFileFilter(new FileNameExtensionFilter("Ảnh (jpg, png, gif, webp)", "jpg","jpeg","png","gif","webp"));
             if (fc.showOpenDialog(dlg) == JFileChooser.APPROVE_OPTION) {
                 File f = fc.getSelectedFile();
-                if (!CloudinaryHelper.isValidImage(f)) {
+                if (!isValidLocalImage(f)) {
                     JOptionPane.showMessageDialog(dlg, "File không hợp lệ! Chỉ chấp nhận jpg, png, gif, webp.");
                     return;
                 }
-                // Hiện preview local trước
-                loadLocalPreview(lblPreview, f);
-                lblImgStatus.setText("Đang upload...");
-                lblImgStatus.setForeground(UITheme.WARNING);
-                btnChooseImg.setEnabled(false);
-                isUploadingImage[0] = true;
-
-                // Upload background
-                ExecutorService exec = Executors.newSingleThreadExecutor();
-                exec.submit(() -> {
-                    String url = CloudinaryHelper.uploadImage(f, "hoivien");
-                    SwingUtilities.invokeLater(() -> {
-                        btnChooseImg.setEnabled(true);
-                        isUploadingImage[0] = false;
-                        if (url != null) {
-                            selectedImageUrl[0] = url;
-                            lblImgStatus.setText("Upload thành công ✓");
-                            lblImgStatus.setForeground(UITheme.SUCCESS);
-                        } else {
-                            // Fallback: lưu path local hoặc thông báo lỗi
-                            lblImgStatus.setText("Upload thất bại. Kiểm tra cấu hình Cloudinary.");
-                            lblImgStatus.setForeground(UITheme.DANGER);
-                            // Giữ preview local, URL rỗng
-                        }
-                    });
-                });
-                exec.shutdown();
+                selectedImagePath[0] = f.getAbsolutePath();
+                lblImgStatus.setText("Đã chọn: " + f.getName());
+                lblImgStatus.setForeground(UITheme.SUCCESS);
             }
         });
 
@@ -533,12 +506,6 @@ public class HoiVienForm extends JPanel {
                 return;
             }
             
-            if (isUploadingImage[0]) {
-                JOptionPane.showMessageDialog(dlg,
-                    "Ảnh đang upload lên Cloud. Vui lòng chờ upload xong rồi lưu.",
-                    "Đang upload ảnh", JOptionPane.WARNING_MESSAGE);
-                return;
-            }
 
             // Chuyển ngày sinh sang yyyy-MM-dd
             String ngaySinhSql = ValidationHelper.toSqlDate(ngaySinh);
@@ -557,7 +524,7 @@ public class HoiVienForm extends JPanel {
                     ps.setString(5, sdt);
                     ps.setString(6, email);
                     ps.setString(7, diaChi);
-                    ps.setString(8, selectedImageUrl[0]);
+                    ps.setString(8, selectedImagePath[0]);
                     ps.setString(9, ttVal);
                     ps.executeUpdate();
                 } else {
@@ -571,7 +538,7 @@ public class HoiVienForm extends JPanel {
                     ps.setString(4, sdt);
                     ps.setString(5, email);
                     ps.setString(6, diaChi);
-                    ps.setString(7, selectedImageUrl[0]);
+                    ps.setString(7, selectedImagePath[0]);
                     ps.setString(8, ttVal);
                     ps.setInt(9, id);
                     ps.executeUpdate();
@@ -628,20 +595,22 @@ public class HoiVienForm extends JPanel {
     lbl.setHorizontalAlignment(SwingConstants.CENTER);
 
     if (imageUrl != null && !imageUrl.isEmpty()) {
-        // load ảnh từ cloud
         new Thread(() -> {
             try {
-                BufferedImage img = ImageIO.read(new URL(imageUrl));
-                Image scaled = img.getScaledInstance(size, size, Image.SCALE_SMOOTH);
+                BufferedImage img = readImage(imageUrl);
+                if (img != null) {
+                    Image scaled = img.getScaledInstance(size, size, Image.SCALE_SMOOTH);
 
                 SwingUtilities.invokeLater(() -> {
-                    lbl.setIcon(new ImageIcon(scaled));
-                });
+                        lbl.setIcon(new ImageIcon(scaled));
+                    });
+                    return;
+                }
 
             } catch (Exception e) {
-                // fallback → chữ cái
-                lbl.setText(name.substring(0,1).toUpperCase());
+                // ignore
             }
+            lbl.setText(name.substring(0,1).toUpperCase());
         }).start();
 
     } else {
@@ -657,10 +626,10 @@ public class HoiVienForm extends JPanel {
 
     private void loadImagePreview(JLabel lbl, String url) {
         if (url == null || url.isEmpty()) return;
-        ExecutorService exec = Executors.newSingleThreadExecutor();
-        exec.submit(() -> {
+        new Thread(() -> {
             try {
-                BufferedImage img = ImageIO.read(new URL(url));
+//              BufferedImage img = ImageIO.read(new URL(url));
+                BufferedImage img = readImage(url);
                 if (img != null) {
                     Image scaled = img.getScaledInstance(80, 80, Image.SCALE_SMOOTH);
                     SwingUtilities.invokeLater(() -> {
@@ -669,8 +638,7 @@ public class HoiVienForm extends JPanel {
                     });
                 }
             } catch (Exception e) { /* ignore */ }
-        });
-        exec.shutdown();
+        }).start();
     }
 
     private void loadLocalPreview(JLabel lbl, File f) {
@@ -682,6 +650,21 @@ public class HoiVienForm extends JPanel {
                 lbl.setText("");
             }
         } catch (Exception e) { /* ignore */ }
+    }
+    
+    private boolean isValidLocalImage(File f) {
+        if (f == null || !f.exists() || !f.isFile()) return false;
+        String name = f.getName().toLowerCase();
+        return name.endsWith(".jpg") || name.endsWith(".jpeg")
+            || name.endsWith(".png") || name.endsWith(".gif") || name.endsWith(".webp");
+    }
+
+    private BufferedImage readImage(String pathOrUrl) throws Exception {
+        if (pathOrUrl == null || pathOrUrl.isEmpty()) return null;
+        if (pathOrUrl.startsWith("http://") || pathOrUrl.startsWith("https://")) {
+            return ImageIO.read(new java.net.URL(pathOrUrl));
+        }
+        return ImageIO.read(new File(pathOrUrl));
     }
 
     private JPanel createCard() {
