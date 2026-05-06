@@ -1,5 +1,6 @@
 package View;
 
+import dao.NhatKyDAO;
 import Util.*;
 import database.DatabaseHelper;
 
@@ -14,6 +15,8 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 //import java.net.URL;
 import java.sql.*;
+import java.time.LocalDateTime;
+import java.util.UUID;
 //import java.util.concurrent.ExecutorService;
 //import java.util.concurrent.Executors;
 
@@ -292,8 +295,10 @@ public class HoiVienForm extends JPanel {
         JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 10));
         btns.setBackground(Color.decode("#F8FAFC"));
         btns.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, UITheme.BORDER_COLOR));
+        JButton btnLeaveReq = UITheme.dangerButton("Yêu cầu rời hội");
         JButton btnEdit  = UITheme.outlineButton("✏ Chỉnh sửa");
         JButton btnClose = UITheme.primaryButton("Đóng");
+        btns.add(btnLeaveReq);
         btns.add(btnEdit);
         btns.add(btnClose);
 
@@ -303,6 +308,8 @@ public class HoiVienForm extends JPanel {
         dlg.add(content);
         btnClose.addActionListener(e -> dlg.dispose());
         btnEdit.addActionListener(e -> { dlg.dispose(); openForm(row); });
+        btnLeaveReq.addActionListener(e -> openLeaveRequestDialog(
+            (int) model.getValueAt(row, COL_ID), ma, ten, email, dlg));
         dlg.setVisible(true);
     }
 
@@ -418,6 +425,10 @@ public class HoiVienForm extends JPanel {
             txtEmail.setText(str(model.getValueAt(row, COL_EMAIL)));
             txtDiaChi.setText(str(model.getValueAt(row, COL_DIACHI)));
             cbTT.setSelectedItem(str(model.getValueAt(row, COL_TRANGTHAI)));
+            if ("Đã rời".equals(str(model.getValueAt(row, COL_TRANGTHAI)))) {
+                cbTT.setEnabled(false);
+                cbTT.setToolTipText("Hội viên đã rời không được đổi trạng thái thủ công.");
+            }
             selectedImagePath[0] = str(model.getValueAt(row, COL_HINHANH));
             if (!selectedImagePath[0].isEmpty()) {
                 lblImgStatus.setText("Đã có ảnh");
@@ -586,6 +597,77 @@ public class HoiVienForm extends JPanel {
                 JOptionPane.showMessageDialog(this, "Lỗi khi xóa: " + e.getMessage());
             }
         }
+    }
+    
+    
+    private void openLeaveRequestDialog(int idHoiVien, String maHV, String tenHV, String emailHV, JDialog parent) {
+        JDialog dlg = createDialog("Yêu cầu rời hội", 520, 380);
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(new EmptyBorder(16, 16, 16, 16));
+        panel.setBackground(Color.WHITE);
+        GridBagConstraints gc = new GridBagConstraints();
+        gc.insets = new Insets(6, 6, 6, 6);
+        gc.fill = GridBagConstraints.HORIZONTAL;
+
+        JTextField txtMa = new JTextField(maHV); txtMa.setEditable(false);
+        JTextField txtTen = new JTextField(tenHV); txtTen.setEditable(false);
+        JTextField txtNgay = new JTextField(ValidationHelper.toDisplayDate(java.time.LocalDate.now().toString()));
+        JTextField txtLyDo = new JTextField();
+        JComboBox<String> cbNguon = new JComboBox<>(new String[]{"Email", "Điện thoại", "Trực tiếp"});
+
+        int r = 0;
+        addFormRow(panel, gc, r++, "Mã hội viên", txtMa);
+        addFormRow(panel, gc, r++, "Tên hội viên", txtTen);
+        addFormRow(panel, gc, r++, "Ngày yêu cầu", txtNgay);
+        addFormRow(panel, gc, r++, "Lý do rời hội", txtLyDo);
+        addFormRow(panel, gc, r++, "Nguồn yêu cầu", cbNguon);
+
+        JButton btnSubmit = UITheme.primaryButton("Gửi yêu cầu");
+        JButton btnCancel = UITheme.outlineButton("Hủy");
+        JPanel pBtn = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        pBtn.setOpaque(false);
+        pBtn.add(btnCancel); pBtn.add(btnSubmit);
+
+        JPanel wrap = new JPanel(new BorderLayout());
+        wrap.add(panel, BorderLayout.CENTER);
+        wrap.add(pBtn, BorderLayout.SOUTH);
+        dlg.add(wrap);
+
+        btnCancel.addActionListener(e -> dlg.dispose());
+        btnSubmit.addActionListener(e -> {
+            String lyDo = txtLyDo.getText().trim();
+            String ngaySql = ValidationHelper.toSqlDate(txtNgay.getText().trim());
+            if (lyDo.isEmpty() || ngaySql == null) {
+                JOptionPane.showMessageDialog(dlg, "Vui lòng nhập lý do và ngày hợp lệ (dd/MM/yyyy).");
+                return;
+            }
+            String token = UUID.randomUUID().toString() + "-" + System.currentTimeMillis();
+            try (Connection conn = DatabaseHelper.getConnection()) {
+                PreparedStatement ps = conn.prepareStatement(
+                    "INSERT INTO YeuCauRoiHoi(idHoiVien,lyDo,nguonYeuCau,trangThai,token,thoiGianTao) VALUES(?,?,?,N'Chờ xác nhận',?,?)");
+                ps.setInt(1, idHoiVien);
+                ps.setString(2, lyDo);
+                ps.setString(3, (String) cbNguon.getSelectedItem());
+                ps.setString(4, token);
+                ps.setTimestamp(5, Timestamp.valueOf(LocalDateTime.parse(ngaySql + "T00:00:00")));
+                ps.executeUpdate();
+
+                NhatKyDAO.log(Session.getCurrentUserId(), "THÊM", "YeuCauRoiHoi", "Tạo yêu cầu rời hội cho " + maHV);
+                if (emailHV != null && !emailHV.trim().isEmpty()) {
+                    String link =
+                        "http://localhost:8080/xacnhan?token="
+                        + token;
+                    EmailSender.send(emailHV, "Xác nhận yêu cầu rời hội",
+                        "Vui lòng xác nhận yêu cầu rời hội trong 24 giờ tại link: " + link);
+                }
+                JOptionPane.showMessageDialog(dlg, "Đã tạo yêu cầu rời hội (Chờ xác nhận).");
+                dlg.dispose();
+                parent.dispose();
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(dlg, "Lỗi tạo yêu cầu: " + ex.getMessage());
+            }
+        });
+        dlg.setVisible(true);
     }
 
     // ========== HELPERS ==========

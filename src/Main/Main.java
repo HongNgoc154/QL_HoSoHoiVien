@@ -5,6 +5,7 @@
 package Main;
 import View.LoginForm;
 import database.DatabaseHelper;
+import Util.EmailConfirmServer;
 
 /**
  *
@@ -15,6 +16,9 @@ public class Main {
 
         // test kết nối DB
         DatabaseHelper.getConnection();
+        
+        // start email confirm server
+        EmailConfirmServer.startServer();
 
         // mở giao diện chính
         java.awt.EventQueue.invokeLater(() -> {
