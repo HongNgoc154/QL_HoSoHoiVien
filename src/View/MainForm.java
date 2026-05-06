@@ -21,40 +21,46 @@ public class MainForm extends JFrame {
     private JButton btnBell;
     private Timer notificationTimer;
 
-    // Kiểm tra quyền Admin
+    // ─── Sidebar dimensions ─────────────────────────────────────────────────
+    private static final int SIDEBAR_W      = 240;
+    private static final int BTN_H          = 48;
+    private static final Color SB_BG        = Color.decode("#1A3E5C");
+    private static final Color SB_HOVER     = new Color(255, 255, 255, 22);
+    private static final Color SB_ACTIVE_BG = Color.decode("#2872A1");
+    private static final Color SB_ACTIVE_IND= Color.WHITE;
+    private static final Color SB_TXT_ON    = Color.WHITE;
+    private static final Color SB_TXT_OFF   = new Color(255, 255, 255, 175);
+    private static final Color SB_SECTION   = new Color(255, 255, 255, 100);
+
     private boolean isAdmin() {
         return Session.isAdmin();
     }
 
     public MainForm() {
-        setTitle("Hệ thống Quản lý Hội viên");
+        setTitle("Hệ thống Quản lý Hồ sơ Hội viên");
         setSize(1300, 760);
         setMinimumSize(new Dimension(1100, 640));
         setLocationRelativeTo(null);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        // ===== TOP NAVBAR =====
-        add(createNavbar(), BorderLayout.NORTH);
+        add(createNavbar(),  BorderLayout.NORTH);
 
-        // ===== SIDEBAR =====
         sidebar = createSidebar();
         add(sidebar, BorderLayout.WEST);
 
-        // ===== CONTENT =====
-        cardLayout = new CardLayout();
+        cardLayout   = new CardLayout();
         contentPanel = new JPanel(cardLayout);
         contentPanel.setBackground(UITheme.BG_MAIN);
 
         contentPanel.add(new DashboardPanel(), "dashboard");
-        contentPanel.add(new HoiVienForm(), "hoivien");
-        contentPanel.add(new HoatDongForm(), "hoatdong");
-        contentPanel.add(new ThamGiaForm(), "thamgia");
+        contentPanel.add(new HoiVienForm(),    "hoivien");
+        contentPanel.add(new HoatDongForm(),   "hoatdong");
+        contentPanel.add(new ThamGiaForm(),    "thamgia");
 
-        // Chỉ admin mới thấy các trang này
         if (isAdmin()) {
             contentPanel.add(new NhanVienForm(), "nhanvien");
-            contentPanel.add(new NhatKyForm(), "nhatky");
+            contentPanel.add(new NhatKyForm(),   "nhatky");
         }
 
         add(contentPanel, BorderLayout.CENTER);
@@ -62,10 +68,12 @@ public class MainForm extends JFrame {
         startNotificationAutoRefresh();
     }
 
-    // ===== NAVBAR =====
+    // ══════════════════════════════════════════════════════════════════════════
+    //  NAVBAR
+    // ══════════════════════════════════════════════════════════════════════════
     private JPanel createNavbar() {
         JPanel nav = new JPanel(new BorderLayout()) {
-            protected void paintComponent(Graphics g) {
+            @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g;
                 g2.setColor(Color.WHITE);
                 g2.fillRect(0, 0, getWidth(), getHeight());
@@ -76,23 +84,25 @@ public class MainForm extends JFrame {
         nav.setPreferredSize(new Dimension(0, 56));
         nav.setBorder(new EmptyBorder(0, 20, 0, 20));
 
+        // ── Left: app name (centered vertically) ──────────────────────────
         JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         left.setOpaque(false);
-        JLabel appName = new JLabel("  Quản Lý Hội Viên");
-        appName.setFont(new Font("Segoe UI", Font.BOLD, 17));
+
+        // Multi-line label để vừa với navbar
+        JLabel appName = new JLabel("<html><center>Quản Lý Hồ Sơ<br>Hội Viên</center></html>");
+        appName.setFont(new Font("Segoe UI", Font.BOLD, 14));
         appName.setForeground(UITheme.PRIMARY);
         left.add(appName);
         nav.add(left, BorderLayout.WEST);
 
-        // Right: user info
+        // ── Right: notifications + user ──────────────────────────────────
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         right.setOpaque(false);
 
-        TaiKhoan user = Session.getUser();
-        String username = user != null ? user.getUsername() : "Người dùng";
-        String role     = user != null ? user.getRole() : "";
+        TaiKhoan user     = Session.getUser();
+        String   username = user != null ? user.getUsername() : "Người dùng";
+        String   role     = user != null ? user.getRole()     : "";
 
-        // Role badge
         JLabel roleLabel = new JLabel(role);
         roleLabel.setFont(UITheme.FONT_SMALL);
         roleLabel.setForeground(UITheme.PRIMARY);
@@ -102,7 +112,7 @@ public class MainForm extends JFrame {
 
         // Avatar circle
         JLabel avatar = new JLabel(String.valueOf(username.charAt(0)).toUpperCase()) {
-            protected void paintComponent(Graphics g) {
+            @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g;
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(UITheme.PRIMARY);
@@ -117,7 +127,7 @@ public class MainForm extends JFrame {
         avatar.setPreferredSize(new Dimension(34, 34));
         avatar.setOpaque(false);
 
-        // User dropdown button
+        // User dropdown
         JButton userBtn = new JButton(username + "  ▾");
         userBtn.setFont(UITheme.FONT_BOLD);
         userBtn.setForeground(UITheme.TEXT_PRIMARY);
@@ -127,33 +137,25 @@ public class MainForm extends JFrame {
         userBtn.setOpaque(true);
         userBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        // Popup menu
         JPopupMenu popup = new JPopupMenu();
         popup.setBorder(BorderFactory.createLineBorder(UITheme.BORDER_COLOR));
-
-        JMenuItem itemInfo = new JMenuItem("👤  " + username + "  (" + role + ")");
-        itemInfo.setFont(UITheme.FONT_BOLD);
-        itemInfo.setEnabled(false);
-
+        JMenuItem itemInfo    = new JMenuItem("👤  " + username + "  (" + role + ")");
+        itemInfo.setFont(UITheme.FONT_BOLD); itemInfo.setEnabled(false);
         JMenuItem itemProfile = new JMenuItem("⚙   Thông tin tài khoản");
         itemProfile.setFont(UITheme.FONT_LABEL);
         itemProfile.addActionListener(e -> showProfileDialog());
-
-        JMenuItem itemLogout = new JMenuItem("⏻   Đăng xuất");
+        JMenuItem itemLogout  = new JMenuItem("⏻   Đăng xuất");
         itemLogout.setFont(UITheme.FONT_LABEL);
         itemLogout.setForeground(UITheme.DANGER);
         itemLogout.addActionListener(e -> logout());
-
-        popup.add(itemInfo);
-        popup.add(new JSeparator());
-        popup.add(itemProfile);
-        popup.add(new JSeparator());
+        popup.add(itemInfo); popup.add(new JSeparator());
+        popup.add(itemProfile); popup.add(new JSeparator());
         popup.add(itemLogout);
-
         userBtn.addActionListener(e -> popup.show(userBtn, 0, userBtn.getHeight()));
 
         btnBell = UITheme.outlineButton("🔔 " + getUnreadNotificationCount());
         btnBell.addActionListener(e -> showNotificationDialog(btnBell));
+
         right.add(btnBell);
         right.add(roleLabel);
         right.add(Box.createHorizontalStrut(6));
@@ -163,210 +165,356 @@ public class MainForm extends JFrame {
         return nav;
     }
 
-    
-    private int getUnreadNotificationCount() {
-        try (Connection conn = DatabaseHelper.getConnection();
-             ResultSet rs = conn.createStatement().executeQuery("SELECT COUNT(*) FROM ThongBao WHERE daDoc=0")) {
-            return rs.next() ? rs.getInt(1) : 0;
-        } catch (Exception e) { return 0; }
-    }
-
-    private void showNotificationDialog(JButton btnBell) {
-        refreshNotificationBadge();
-        JDialog dlg = new JDialog(this, "Thông báo", true);
-        dlg.setSize(560, 400); dlg.setLocationRelativeTo(this);
-        DefaultListModel<String> m = new DefaultListModel<>();
-        java.util.List<Integer> ids = new java.util.ArrayList<>();
-        try (Connection conn = DatabaseHelper.getConnection();
-             ResultSet rs = conn.createStatement().executeQuery("SELECT id,noiDung,daDoc,thoiGian FROM ThongBao ORDER BY id DESC")) {
-            while (rs.next()) {
-                ids.add(rs.getInt("id"));
-                m.addElement((rs.getBoolean("daDoc") ? "✓ " : "• ") + rs.getString("noiDung") + " | " + rs.getString("thoiGian"));
-            }
-        } catch (Exception e) {}
-        JList<String> list = new JList<>(m);
-        JButton btnDetail = UITheme.primaryButton("Xem chi tiết");
-        btnDetail.addActionListener(e -> { int idx = list.getSelectedIndex(); if(idx>=0) showNotificationDetail(ids.get(idx), dlg, btnBell); });
-        dlg.add(new JScrollPane(list), BorderLayout.CENTER); dlg.add(btnDetail, BorderLayout.SOUTH); dlg.setVisible(true);
-    }
-
-    private void showNotificationDetail(int idThongBao, JDialog parent, JButton btnBell) {
-        try (Connection conn = DatabaseHelper.getConnection()) {
-            PreparedStatement ps = conn.prepareStatement(
-                "SELECT tb.id, tb.noiDung, dkt.id idDangKyTam, dkt.idHoiVien, dkt.idHoatDong, dkt.thoiGianDangKy, hv.tenHoiVien, hv.maHoiVien, hd.tenHoatDong " +
-                "FROM ThongBao tb JOIN DangKyTam dkt ON tb.idDangKyTam=dkt.id " +
-                "JOIN HoiVien hv ON dkt.idHoiVien=hv.id JOIN HoatDong hd ON dkt.idHoatDong=hd.id WHERE tb.id=?");
-            ps.setInt(1, idThongBao); ResultSet rs = ps.executeQuery(); if(!rs.next()) return;
-            conn.createStatement().executeUpdate("UPDATE ThongBao SET daDoc=1 WHERE id=" + idThongBao);
-            JDialog d = new JDialog(this, "Duyệt đăng ký", true); d.setSize(520,320); d.setLocationRelativeTo(this);
-            JTextArea ta = new JTextArea("Hội viên: " + rs.getString("tenHoiVien") + " (" + rs.getString("maHoiVien") + ")\nHoạt động: " + rs.getString("tenHoatDong") + "\nThời gian đăng ký: " + rs.getString("thoiGianDangKy") + "\n\n" + rs.getString("noiDung"));
-            ta.setEditable(false); ta.setLineWrap(true);
-            JButton ok = UITheme.primaryButton("✔ Xác nhận"); JButton no = UITheme.dangerButton("❌ Từ chối");
-            JPanel p = new JPanel(new FlowLayout(FlowLayout.RIGHT)); p.add(no); p.add(ok);
-            int idDkt = rs.getInt("idDangKyTam"), idHv = rs.getInt("idHoiVien"), idHd = rs.getInt("idHoatDong");
-            ok.addActionListener(ev -> approveRegister(idDkt, idHv, idHd, d));
-            no.addActionListener(ev -> rejectRegister(idDkt, d));
-            d.add(new JScrollPane(ta), BorderLayout.CENTER); d.add(p, BorderLayout.SOUTH); d.setVisible(true);
-            btnBell.setText("🔔 " + getUnreadNotificationCount()); parent.dispose();
-        } catch (Exception ignored) {}
-    }
-
-    private void approveRegister(int idDkt, int idHv, int idHd, JDialog d) {
-        try (Connection conn = DatabaseHelper.getConnection()) {
-            PreparedStatement chk = conn.prepareStatement("SELECT 1 FROM ThamGia WHERE idHoiVien=? AND idHoatDong=?");
-            chk.setInt(1,idHv); chk.setInt(2,idHd);
-            if (!chk.executeQuery().next()) {
-                PreparedStatement ins = conn.prepareStatement("INSERT INTO ThamGia(idHoiVien,idHoatDong,trangThai,ngayDangKy) VALUES(?,?,N'Đã đăng ký',GETDATE())");
-                ins.setInt(1,idHv); ins.setInt(2,idHd); ins.executeUpdate();
-            }
-            conn.createStatement().executeUpdate("UPDATE DangKyTam SET trangThai=N'Đã duyệt' WHERE id=" + idDkt);
-            JOptionPane.showMessageDialog(d, "Đã duyệt đăng ký."); d.dispose();
-        } catch (Exception ex) { JOptionPane.showMessageDialog(d, "Lỗi duyệt: " + ex.getMessage()); }
-    }
-    private void rejectRegister(int idDkt, JDialog d) {
-        try (Connection conn = DatabaseHelper.getConnection()) {
-            conn.createStatement().executeUpdate("UPDATE DangKyTam SET trangThai=N'Từ chối' WHERE id=" + idDkt);
-            JOptionPane.showMessageDialog(d, "Đã từ chối đăng ký."); d.dispose();
-        } catch (Exception ex) { JOptionPane.showMessageDialog(d, "Lỗi từ chối: " + ex.getMessage()); }
-    }
-    
-    
-    private void startNotificationAutoRefresh() {
-        notificationTimer = new Timer(10000, e -> refreshNotificationBadge());
-        notificationTimer.setRepeats(true);
-        notificationTimer.start();
-    }
-
-    private void refreshNotificationBadge() {
-        if (btnBell != null) {
-            btnBell.setText("🔔 " + getUnreadNotificationCount());
-        }
-    }
-    
-    // ===== SIDEBAR =====
+    // ══════════════════════════════════════════════════════════════════════════
+    //  SIDEBAR
+    // ══════════════════════════════════════════════════════════════════════════
     private JPanel createSidebar() {
         JPanel sb = new JPanel() {
-            protected void paintComponent(Graphics g) {
+            @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g;
-                GradientPaint gp = new GradientPaint(0, 0, UITheme.BG_SIDEBAR,
-                    0, getHeight(), Color.decode("#0F2940"));
+                GradientPaint gp = new GradientPaint(
+                    0, 0, SB_BG, 0, getHeight(), Color.decode("#0F2940"));
                 g2.setPaint(gp);
                 g2.fillRect(0, 0, getWidth(), getHeight());
             }
         };
-        sb.setPreferredSize(new Dimension(230, 0));
+        sb.setPreferredSize(new Dimension(SIDEBAR_W, 0));
         sb.setLayout(new BoxLayout(sb, BoxLayout.Y_AXIS));
-        sb.setBorder(new EmptyBorder(10, 0, 20, 0));
 
-        // Menu dùng chung
+        // ── Logo / Branding block ────────────────────────────────────────
+        JPanel brandPanel = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g;
+                g2.setColor(new Color(0, 0, 0, 40));
+                g2.fillRect(0, 0, getWidth(), getHeight());
+            }
+        };
+        brandPanel.setOpaque(false);
+        brandPanel.setLayout(new BoxLayout(brandPanel, BoxLayout.Y_AXIS));
+        brandPanel.setBorder(new EmptyBorder(18, 0, 18, 0));
+        brandPanel.setMaximumSize(new Dimension(SIDEBAR_W, 90));
+        brandPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        // Icon
+        JLabel iconLbl = new JLabel("◆") {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g;
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(255, 255, 255, 200));
+                g2.setFont(new Font("Segoe UI", Font.BOLD, 22));
+                FontMetrics fm = g2.getFontMetrics();
+                g2.drawString("◆", (getWidth() - fm.stringWidth("◆"))/2,
+                    fm.getAscent());
+            }
+        };
+        iconLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+        iconLbl.setPreferredSize(new Dimension(SIDEBAR_W, 28));
+        iconLbl.setMaximumSize(new Dimension(SIDEBAR_W, 28));
+
+        // App title — 2 dòng, canh giữa
+        JLabel appTitle1 = makeBrandLabel("Quản Lý Hồ Sơ", 13, true,  Color.WHITE);
+        JLabel appTitle2 = makeBrandLabel("Hội Viên",       13, false, new Color(203, 221, 233));
+
+        brandPanel.add(iconLbl);
+        brandPanel.add(Box.createVerticalStrut(6));
+        brandPanel.add(appTitle1);
+        brandPanel.add(appTitle2);
+
+        sb.add(brandPanel);
+
+        // ── Divider ─────────────────────────────────────────────────────
+        sb.add(sidebarDivider());
+        sb.add(Box.createVerticalStrut(6));
+
+        // ── Common menu ─────────────────────────────────────────────────
         String[][] commonMenus = {
             {"🏠", "Trang chủ",  "dashboard"},
             {"👥", "Hội viên",   "hoivien"},
             {"📅", "Hoạt động",  "hoatdong"},
             {"✅", "Tham gia",   "thamgia"},
         };
-
-        // Menu chỉ admin
-        String[][] adminMenus = {
-            {"👔", "Nhân viên",  "nhanvien"},
-            {"📋", "Nhật ký",    "nhatky"},
-        };
-
-        sb.add(Box.createVerticalStrut(10));
-
         for (String[] item : commonMenus) {
-            JButton btn = createSidebarBtn(item[0], item[1], item[2]);
-            sb.add(btn);
+            sb.add(createSidebarBtn(item[0], item[1], item[2]));
             sb.add(Box.createVerticalStrut(2));
         }
 
+        // ── Admin section ────────────────────────────────────────────────
         if (isAdmin()) {
-            // Divider
-            JSeparator sep = new JSeparator();
-            sep.setForeground(new Color(255, 255, 255, 30));
-            sep.setMaximumSize(new Dimension(200, 1));
-            sep.setAlignmentX(Component.LEFT_ALIGNMENT);
-            JPanel sepWrapper = new JPanel(new FlowLayout(FlowLayout.LEFT, 16, 4));
-            sepWrapper.setOpaque(false);
-            JLabel adminLabel = new JLabel("QUẢN TRỊ");
-            adminLabel.setFont(new Font("Segoe UI", Font.BOLD, 10));
-            adminLabel.setForeground(new Color(255, 255, 255, 100));
-            sepWrapper.add(adminLabel);
-            sb.add(Box.createVerticalStrut(8));
-            sb.add(sepWrapper);
+            sb.add(Box.createVerticalStrut(10));
+            sb.add(sidebarSectionLabel("QUẢN TRỊ"));
+            sb.add(Box.createVerticalStrut(4));
 
+            String[][] adminMenus = {
+                {"👔", "Nhân viên", "nhanvien"},
+                {"📋", "Nhật ký",   "nhatky"},
+            };
             for (String[] item : adminMenus) {
-                JButton btn = createSidebarBtn(item[0], item[1], item[2]);
-                sb.add(btn);
+                sb.add(createSidebarBtn(item[0], item[1], item[2]));
                 sb.add(Box.createVerticalStrut(2));
             }
         }
 
         sb.add(Box.createVerticalGlue());
+
+        // ── Footer: version ─────────────────────────────────────────────
+        JPanel footer = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        footer.setOpaque(false);
+        footer.setMaximumSize(new Dimension(SIDEBAR_W, 36));
+        JLabel ver = new JLabel("v1.0.0");
+        ver.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+        ver.setForeground(new Color(255, 255, 255, 70));
+        footer.add(ver);
+        sb.add(footer);
+        sb.add(Box.createVerticalStrut(10));
+
         return sb;
     }
 
+    // ── Brand label helper ──────────────────────────────────────────────
+    private JLabel makeBrandLabel(String text, int size, boolean bold, Color color) {
+        JLabel lbl = new JLabel(text, SwingConstants.CENTER);
+        lbl.setFont(new Font("Segoe UI", bold ? Font.BOLD : Font.PLAIN, size));
+        lbl.setForeground(color);
+        lbl.setAlignmentX(Component.CENTER_ALIGNMENT);
+        lbl.setMaximumSize(new Dimension(SIDEBAR_W, 22));
+        return lbl;
+    }
+
+    // ── Sidebar divider ─────────────────────────────────────────────────
+    private JPanel sidebarDivider() {
+        JPanel div = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
+                g.setColor(new Color(255, 255, 255, 35));
+                g.drawLine(16, 0, getWidth()-16, 0);
+            }
+        };
+        div.setOpaque(false);
+        div.setMaximumSize(new Dimension(SIDEBAR_W, 1));
+        div.setPreferredSize(new Dimension(SIDEBAR_W, 1));
+        return div;
+    }
+
+    // ── Section label (e.g. "QUẢN TRỊ") ────────────────────────────────
+    private JPanel sidebarSectionLabel(String text) {
+        JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 0));
+        p.setOpaque(false);
+        p.setMaximumSize(new Dimension(SIDEBAR_W, 22));
+        JLabel lbl = new JLabel(text);
+        lbl.setFont(new Font("Segoe UI", Font.BOLD, 10));
+        lbl.setForeground(SB_SECTION);
+        p.add(lbl);
+        return p;
+    }
+
+    // ── Sidebar button ──────────────────────────────────────────────────
     private JButton createSidebarBtn(String icon, String label, String panel) {
         JButton btn = new JButton() {
             boolean hovered = false;
+
             {
                 setOpaque(false);
                 setContentAreaFilled(false);
                 setBorderPainted(false);
                 setFocusPainted(false);
-                setMaximumSize(new Dimension(230, 46));
-                setPreferredSize(new Dimension(230, 46));
+                setMaximumSize(new Dimension(SIDEBAR_W, BTN_H));
+                setPreferredSize(new Dimension(SIDEBAR_W, BTN_H));
                 setAlignmentX(Component.LEFT_ALIGNMENT);
                 setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
                 addMouseListener(new MouseAdapter() {
-                    public void mouseEntered(MouseEvent e) { hovered = true; repaint(); }
-                    public void mouseExited(MouseEvent e)  { hovered = false; repaint(); }
+                    public void mouseEntered(MouseEvent e) { hovered = true;  repaint(); }
+                    public void mouseExited (MouseEvent e) { hovered = false; repaint(); }
                 });
             }
+
+            @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g;
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 boolean isActive = (activeBtn == this);
+
+                // Background
                 if (isActive) {
-                    g2.setColor(UITheme.BG_SIDEBAR_ACTIVE);
-                    g2.fillRoundRect(10, 4, getWidth()-20, getHeight()-8, 10, 10);
-                    g2.setColor(Color.WHITE);
-                    g2.fillRoundRect(0, 12, 4, getHeight()-24, 4, 4);
+                    g2.setColor(SB_ACTIVE_BG);
+                    g2.fillRoundRect(10, 4, getWidth()-20, BTN_H-8, 10, 10);
+                    // Active indicator bar (left edge)
+                    g2.setColor(SB_ACTIVE_IND);
+                    g2.fillRoundRect(0, (BTN_H-24)/2, 4, 24, 4, 4);
                 } else if (hovered) {
-                    g2.setColor(new Color(255, 255, 255, 20));
-                    g2.fillRoundRect(10, 4, getWidth()-20, getHeight()-8, 10, 10);
+                    g2.setColor(SB_HOVER);
+                    g2.fillRoundRect(10, 4, getWidth()-20, BTN_H-8, 10, 10);
                 }
-                boolean isActive2 = (activeBtn == this);
+
+                // Icon — use emoji font for better rendering
                 g2.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 16));
-                g2.setColor(isActive2 ? Color.WHITE : new Color(255, 255, 255, 180));
-                g2.drawString(icon, 22, 29);
-                g2.setFont(isActive2 ? UITheme.FONT_NAV : new Font("Segoe UI", Font.PLAIN, 14));
-                g2.setColor(isActive2 ? Color.WHITE : new Color(255, 255, 255, 180));
-                g2.drawString(label, 56, 29);
+                g2.setColor(isActive ? SB_TXT_ON : SB_TXT_OFF);
+                g2.drawString(icon, 22, BTN_H/2 + 6);
+
+                // Label text — fits within width
+                g2.setFont(isActive
+                    ? new Font("Segoe UI", Font.BOLD,  13)
+                    : new Font("Segoe UI", Font.PLAIN, 13));
+                g2.setColor(isActive ? SB_TXT_ON : SB_TXT_OFF);
+
+                // Clip label to avoid overflow
+                String displayLabel = label;
+                FontMetrics fm = g2.getFontMetrics();
+                int maxWidth = getWidth() - 60; // 22 icon + 16 gap + 22 right pad
+                if (fm.stringWidth(displayLabel) > maxWidth) {
+                    while (fm.stringWidth(displayLabel + "…") > maxWidth && displayLabel.length() > 1)
+                        displayLabel = displayLabel.substring(0, displayLabel.length()-1);
+                    displayLabel += "…";
+                }
+                g2.drawString(displayLabel, 56, BTN_H/2 + 5);
             }
         };
+
         btn.addActionListener(e -> {
             activeBtn = btn;
             switchPanel(panel);
             sidebar.repaint();
         });
+
+        btn.setToolTipText(label); // tooltip khi text bị cắt
         return btn;
     }
 
-    // ===== PROFILE DIALOG =====
+    // ══════════════════════════════════════════════════════════════════════════
+    //  NOTIFICATIONS
+    // ══════════════════════════════════════════════════════════════════════════
+    private int getUnreadNotificationCount() {
+        try (Connection conn = DatabaseHelper.getConnection();
+             ResultSet rs = conn.createStatement().executeQuery(
+                 "SELECT COUNT(*) FROM ThongBao WHERE daDoc=0")) {
+            return rs.next() ? rs.getInt(1) : 0;
+        } catch (Exception e) { return 0; }
+    }
+
+    private void showNotificationDialog(JButton source) {
+        refreshNotificationBadge();
+        JDialog dlg = new JDialog(this, "Thông báo", true);
+        dlg.setSize(560, 400);
+        dlg.setLocationRelativeTo(this);
+
+        DefaultListModel<String> m = new DefaultListModel<>();
+        java.util.List<Integer> ids = new java.util.ArrayList<>();
+        try (Connection conn = DatabaseHelper.getConnection();
+             ResultSet rs = conn.createStatement().executeQuery(
+                 "SELECT id,noiDung,daDoc,thoiGian FROM ThongBao ORDER BY id DESC")) {
+            while (rs.next()) {
+                ids.add(rs.getInt("id"));
+                m.addElement((rs.getBoolean("daDoc") ? "✓ " : "• ")
+                    + rs.getString("noiDung") + " | " + rs.getString("thoiGian"));
+            }
+        } catch (Exception e) {}
+
+        JList<String> list = new JList<>(m);
+        JButton btnDetail = UITheme.primaryButton("Xem chi tiết");
+        btnDetail.addActionListener(e -> {
+            int idx = list.getSelectedIndex();
+            if (idx >= 0) showNotificationDetail(ids.get(idx), dlg, source);
+        });
+        dlg.add(new JScrollPane(list), BorderLayout.CENTER);
+        dlg.add(btnDetail, BorderLayout.SOUTH);
+        dlg.setVisible(true);
+    }
+
+    private void showNotificationDetail(int idThongBao, JDialog parent, JButton btnBell) {
+        try (Connection conn = DatabaseHelper.getConnection()) {
+            PreparedStatement ps = conn.prepareStatement(
+                "SELECT tb.id, tb.noiDung, dkt.id idDangKyTam, dkt.idHoiVien, dkt.idHoatDong, "
+              + "dkt.thoiGianDangKy, hv.tenHoiVien, hv.maHoiVien, hd.tenHoatDong "
+              + "FROM ThongBao tb JOIN DangKyTam dkt ON tb.idDangKyTam=dkt.id "
+              + "JOIN HoiVien hv ON dkt.idHoiVien=hv.id "
+              + "JOIN HoatDong hd ON dkt.idHoatDong=hd.id WHERE tb.id=?");
+            ps.setInt(1, idThongBao);
+            ResultSet rs = ps.executeQuery();
+            if (!rs.next()) return;
+            conn.createStatement().executeUpdate(
+                "UPDATE ThongBao SET daDoc=1 WHERE id=" + idThongBao);
+
+            JDialog d = new JDialog(this, "Duyệt đăng ký", true);
+            d.setSize(520, 320); d.setLocationRelativeTo(this);
+            JTextArea ta = new JTextArea(
+                "Hội viên: " + rs.getString("tenHoiVien") + " (" + rs.getString("maHoiVien") + ")\n"
+              + "Hoạt động: " + rs.getString("tenHoatDong") + "\n"
+              + "Thời gian đăng ký: " + rs.getString("thoiGianDangKy") + "\n\n"
+              + rs.getString("noiDung"));
+            ta.setEditable(false); ta.setLineWrap(true);
+
+            JButton ok = UITheme.primaryButton("✔ Xác nhận");
+            JButton no = UITheme.dangerButton("❌ Từ chối");
+            JPanel p = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            p.add(no); p.add(ok);
+
+            int idDkt = rs.getInt("idDangKyTam");
+            int idHv  = rs.getInt("idHoiVien");
+            int idHd  = rs.getInt("idHoatDong");
+            ok.addActionListener(ev -> approveRegister(idDkt, idHv, idHd, d));
+            no.addActionListener(ev -> rejectRegister(idDkt, d));
+
+            d.add(new JScrollPane(ta), BorderLayout.CENTER);
+            d.add(p, BorderLayout.SOUTH);
+            d.setVisible(true);
+
+            btnBell.setText("🔔 " + getUnreadNotificationCount());
+            parent.dispose();
+        } catch (Exception ignored) {}
+    }
+
+    private void approveRegister(int idDkt, int idHv, int idHd, JDialog d) {
+        try (Connection conn = DatabaseHelper.getConnection()) {
+            PreparedStatement chk = conn.prepareStatement(
+                "SELECT 1 FROM ThamGia WHERE idHoiVien=? AND idHoatDong=?");
+            chk.setInt(1, idHv); chk.setInt(2, idHd);
+            if (!chk.executeQuery().next()) {
+                PreparedStatement ins = conn.prepareStatement(
+                    "INSERT INTO ThamGia(idHoiVien,idHoatDong,trangThai,ngayDangKy) VALUES(?,?,N'Đã đăng ký',GETDATE())");
+                ins.setInt(1, idHv); ins.setInt(2, idHd); ins.executeUpdate();
+            }
+            conn.createStatement().executeUpdate(
+                "UPDATE DangKyTam SET trangThai=N'Đã duyệt' WHERE id=" + idDkt);
+            JOptionPane.showMessageDialog(d, "Đã duyệt đăng ký.");
+            d.dispose();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(d, "Lỗi duyệt: " + ex.getMessage());
+        }
+    }
+
+    private void rejectRegister(int idDkt, JDialog d) {
+        try (Connection conn = DatabaseHelper.getConnection()) {
+            conn.createStatement().executeUpdate(
+                "UPDATE DangKyTam SET trangThai=N'Từ chối' WHERE id=" + idDkt);
+            JOptionPane.showMessageDialog(d, "Đã từ chối đăng ký.");
+            d.dispose();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(d, "Lỗi từ chối: " + ex.getMessage());
+        }
+    }
+
+    private void startNotificationAutoRefresh() {
+        notificationTimer = new Timer(10_000, e -> refreshNotificationBadge());
+        notificationTimer.setRepeats(true);
+        notificationTimer.start();
+    }
+
+    private void refreshNotificationBadge() {
+        if (btnBell != null)
+            btnBell.setText("🔔 " + getUnreadNotificationCount());
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  PROFILE DIALOG
+    // ══════════════════════════════════════════════════════════════════════════
     private void showProfileDialog() {
         TaiKhoan user = Session.getUser();
         if (user == null) return;
 
         JDialog dlg = new JDialog(this, "Thông tin tài khoản", true);
-        dlg.setSize(420, 380);
-        dlg.setLocationRelativeTo(this);
-        dlg.setResizable(false);
+        dlg.setSize(420, 380); dlg.setLocationRelativeTo(this); dlg.setResizable(false);
 
         JPanel content = new JPanel(new BorderLayout());
         content.setBackground(Color.WHITE);
 
-        // Header
         JPanel topBar = new JPanel(new BorderLayout());
         topBar.setBackground(UITheme.PRIMARY);
         topBar.setBorder(new EmptyBorder(16, 20, 16, 20));
@@ -374,9 +522,8 @@ public class MainForm extends JFrame {
         JPanel topContent = new JPanel(new FlowLayout(FlowLayout.LEFT, 14, 0));
         topContent.setOpaque(false);
 
-        // Avatar lớn
         JLabel avatarBig = new JLabel(String.valueOf(user.getUsername().charAt(0)).toUpperCase()) {
-            protected void paintComponent(Graphics g) {
+            @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g;
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(Color.WHITE);
@@ -385,87 +532,78 @@ public class MainForm extends JFrame {
                 g2.setFont(new Font("Segoe UI", Font.BOLD, 24));
                 FontMetrics fm = g2.getFontMetrics();
                 String t = getText();
-                g2.drawString(t, (52 - fm.stringWidth(t))/2, (52 - fm.getHeight())/2 + fm.getAscent());
+                g2.drawString(t,(52-fm.stringWidth(t))/2,(52-fm.getHeight())/2+fm.getAscent());
             }
         };
         avatarBig.setPreferredSize(new Dimension(52, 52));
         avatarBig.setOpaque(false);
 
-        JPanel nameInfo = new JPanel(new GridLayout(2, 1, 0, 2));
+        JPanel nameInfo = new JPanel(new GridLayout(2,1,0,2));
         nameInfo.setOpaque(false);
         JLabel lblUname = new JLabel(user.getUsername());
-        lblUname.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        lblUname.setForeground(Color.WHITE);
-        JLabel lblRole = new JLabel(user.getRole());
-        lblRole.setFont(UITheme.FONT_SMALL);
-        lblRole.setForeground(new Color(255, 255, 255, 200));
-        nameInfo.add(lblUname);
-        nameInfo.add(lblRole);
+        lblUname.setFont(new Font("Segoe UI", Font.BOLD, 16)); lblUname.setForeground(Color.WHITE);
+        JLabel lblRole  = new JLabel(user.getRole());
+        lblRole.setFont(UITheme.FONT_SMALL); lblRole.setForeground(new Color(255,255,255,200));
+        nameInfo.add(lblUname); nameInfo.add(lblRole);
 
-        topContent.add(avatarBig);
-        topContent.add(nameInfo);
+        topContent.add(avatarBig); topContent.add(nameInfo);
         topBar.add(topContent, BorderLayout.CENTER);
 
-        // Info panel
         JPanel info = new JPanel(new GridBagLayout());
         info.setBackground(Color.WHITE);
         info.setBorder(new EmptyBorder(20, 28, 20, 28));
         GridBagConstraints gc = new GridBagConstraints();
-        gc.insets = new Insets(8, 4, 8, 4);
-        gc.anchor = GridBagConstraints.WEST;
+        gc.insets = new Insets(8, 4, 8, 4); gc.anchor = GridBagConstraints.WEST;
 
         addInfoRow(info, gc, 0, "Tên đăng nhập:", user.getUsername());
-        addInfoRow(info, gc, 1, "Phân quyền:", user.getRole());
-        addInfoRow(info, gc, 2, "ID nhân viên:", String.valueOf(user.getIdNhanVien()));
+        addInfoRow(info, gc, 1, "Phân quyền:",    user.getRole());
+        addInfoRow(info, gc, 2, "ID nhân viên:",  String.valueOf(user.getIdNhanVien()));
 
-        // Lấy thêm thông tin nhân viên nếu có
-        try (java.sql.Connection conn = database.DatabaseHelper.getConnection();
-             java.sql.PreparedStatement ps = conn.prepareStatement(
+        try (Connection conn = DatabaseHelper.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
                  "SELECT tenNhanVien, email, sdt FROM NhanVien WHERE id=?")) {
             ps.setInt(1, user.getIdNhanVien());
-            java.sql.ResultSet rs = ps.executeQuery();
+            ResultSet rs = ps.executeQuery();
             if (rs.next()) {
                 addInfoRow(info, gc, 3, "Tên nhân viên:", rs.getString("tenNhanVien"));
                 addInfoRow(info, gc, 4, "Email:",         rs.getString("email"));
                 addInfoRow(info, gc, 5, "Số điện thoại:", rs.getString("sdt"));
             }
-        } catch (Exception ex) { /* ignore */ }
+        } catch (Exception ex) {}
 
-        // Buttons
         JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 12));
         btns.setBackground(Color.decode("#F8FAFC"));
         btns.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, UITheme.BORDER_COLOR));
         JButton btnClose = UITheme.primaryButton("Đóng");
         btns.add(btnClose);
 
-        content.add(topBar, BorderLayout.NORTH);
-        content.add(info, BorderLayout.CENTER);
-        content.add(btns, BorderLayout.SOUTH);
+        content.add(topBar,       BorderLayout.NORTH);
+        content.add(info,         BorderLayout.CENTER);
+        content.add(btns,         BorderLayout.SOUTH);
         dlg.add(content);
         btnClose.addActionListener(e -> dlg.dispose());
         dlg.setVisible(true);
     }
 
     private void addInfoRow(JPanel p, GridBagConstraints gc, int y, String lbl, String val) {
-        gc.gridx=0; gc.gridy=y;
+        gc.gridx = 0; gc.gridy = y;
         JLabel l = new JLabel(lbl);
-        l.setFont(UITheme.FONT_BOLD);
-        l.setForeground(UITheme.TEXT_SECONDARY);
+        l.setFont(UITheme.FONT_BOLD); l.setForeground(UITheme.TEXT_SECONDARY);
         l.setPreferredSize(new Dimension(150, 24));
         p.add(l, gc);
-        gc.gridx=1;
+        gc.gridx = 1;
         JLabel v = new JLabel(val != null ? val : "—");
-        v.setFont(UITheme.FONT_LABEL);
-        v.setForeground(UITheme.TEXT_PRIMARY);
+        v.setFont(UITheme.FONT_LABEL); v.setForeground(UITheme.TEXT_PRIMARY);
         p.add(v, gc);
     }
 
-    // ===== SWITCH PANEL =====
+    // ══════════════════════════════════════════════════════════════════════════
+    //  UTILS
+    // ══════════════════════════════════════════════════════════════════════════
     private void switchPanel(String name) {
         cardLayout.show(contentPanel, name);
     }
 
-    // ===== LOGOUT =====
     private void logout() {
         int confirm = JOptionPane.showConfirmDialog(this,
             "Bạn có chắc chắn muốn đăng xuất?",
