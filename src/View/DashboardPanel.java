@@ -1076,20 +1076,20 @@ public class DashboardPanel extends JPanel {
 
         JPanel fmtBtns = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         fmtBtns.setBackground(CARD);
-        JButton btnCSV = actionBtn("📄 Xuất CSV", GREEN);
-        btnCSV.setPreferredSize(new Dimension(120, 36));
+        JButton btnExcel = actionBtn("📗 Xuất Excel", GREEN);
+        btnExcel.setPreferredSize(new Dimension(130, 36));
         JButton btnCancel = actionBtn("Hủy", new Color(107,114,128));
         btnCancel.setPreferredSize(new Dimension(80, 36));
-        fmtBtns.add(btnCSV);
+        fmtBtns.add(btnExcel);
         fmtBtns.add(btnCancel);
         fmtRow.add(fmtBtns, BorderLayout.CENTER);
         content.add(fmtRow, BorderLayout.SOUTH);
 
         btnCancel.addActionListener(e -> dlg.dispose());
-        btnCSV.addActionListener(e -> {
+        btnExcel.addActionListener(e -> {
             dlg.dispose();
             refreshTableData();
-            exportMultiSheetCSV(chkCoCap.isSelected(), chkLoai.isSelected(),
+            exportMultiSheetExcel(chkCoCap.isSelected(), chkLoai.isSelected(),
                 chkTop.isSelected(), chkGanDay.isSelected());
         });
 
@@ -1097,46 +1097,32 @@ public class DashboardPanel extends JPanel {
         dlg.setVisible(true);
     }
 
-    private void exportMultiSheetCSV(boolean coCap, boolean loai, boolean top, boolean ganDay) {
+    private void exportMultiSheetExcel(boolean coCap, boolean loai, boolean top, boolean ganDay) {
         JFileChooser fc = new JFileChooser();
-        fc.setDialogTitle("Lưu file CSV");
+        fc.setDialogTitle("Lưu file Excel");
         fc.setSelectedFile(new File("Dashboard_" +
-            LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + ".csv"));
+            LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd")) + ".xml"));
         if (fc.showSaveDialog(this) != JFileChooser.APPROVE_OPTION) return;
 
-        try (PrintWriter pw = new PrintWriter(
-                new OutputStreamWriter(new FileOutputStream(fc.getSelectedFile()), "UTF-8"))) {
-            pw.write('\uFEFF');
+        try (PrintWriter pw = new PrintWriter(new OutputStreamWriter(
+                new FileOutputStream(fc.getSelectedFile()), "UTF-8"))) {
+            pw.println("<?xml version=\"1.0\"?>");
+            pw.println("<Workbook xmlns=\"urn:schemas-microsoft-com:office:spreadsheet\"");
+            pw.println(" xmlns:ss=\"urn:schemas-microsoft-com:office:spreadsheet\">");
 
             if (coCap && tblCoCapHoiVien != null) {
-                pw.println("\"=== Cơ cấu hội viên ===\"");
-                writeModelToCSV(pw, tblCoCapHoiVien);
-                pw.println();
+                writeModelToExcelSheet(pw, "Cơ cấu hội viên", tblCoCapHoiVien);
             }
             if (loai && tblHoatDongLoai != null) {
-                pw.println("\"=== Hoạt động theo loại ===\"");
-                writeModelToCSV(pw, tblHoatDongLoai);
-                pw.println();
+                writeModelToExcelSheet(pw, "Hoạt động theo loại", tblHoatDongLoai);
             }
             if (top) {
-                pw.println("\"=== Top hội viên tích cực ===\"");
-                // Write all data, not just page
-                pw.println("\"#\",\"Tên hội viên\",\"Email\",\"Số lần tham gia\",\"HĐ gần nhất\",\"Trạng thái\"");
-                for (Object[] row : topMembersFullData) {
-                    StringBuilder sb = new StringBuilder();
-                    for (int i = 0; i < row.length; i++) {
-                        if (i > 0) sb.append(",");
-                        sb.append("\"").append(row[i] == null ? "" : row[i].toString().replace("\"","\"\"")).append("\"");
-                    }
-                    pw.println(sb);
-                }
-                pw.println();
+                writeTopMembersExcelSheet(pw);
             }
             if (ganDay && tblHoatDongGanDay != null) {
-                pw.println("\"=== Hoạt động gần đây ===\"");
-                writeModelToCSV(pw, tblHoatDongGanDay);
-                pw.println();
+                writeModelToExcelSheet(pw, "Hoạt động gần đây", tblHoatDongGanDay);
             }
+            pw.println("</Workbook>");
 
             JOptionPane.showMessageDialog(this,
                 "Xuất file thành công!\n" + fc.getSelectedFile().getAbsolutePath(),
@@ -1147,22 +1133,43 @@ public class DashboardPanel extends JPanel {
         }
     }
 
-    private void writeModelToCSV(PrintWriter pw, DefaultTableModel model) {
-        StringBuilder sb = new StringBuilder();
+    private void writeModelToExcelSheet(PrintWriter pw, String sheetName, DefaultTableModel model) {
+        pw.println("<Worksheet ss:Name=\"" + escapeXml(sheetName) + "\"><Table>");
+        pw.println("<Row>");
         for (int i = 0; i < model.getColumnCount(); i++) {
-            if (i > 0) sb.append(",");
-            sb.append("\"").append(model.getColumnName(i)).append("\"");
+            pw.println("<Cell><Data ss:Type=\"String\">" + escapeXml(model.getColumnName(i)) + "</Data></Cell>");
         }
-        pw.println(sb);
+        pw.println("</Row>");
         for (int r = 0; r < model.getRowCount(); r++) {
-            sb = new StringBuilder();
+            pw.println("<Row>");
             for (int c = 0; c < model.getColumnCount(); c++) {
-                if (c > 0) sb.append(",");
+//                if (c > 0) sb.append(",");
                 Object v = model.getValueAt(r, c);
-                sb.append("\"").append(v == null ? "" : v.toString().replace("\"","\"\"")).append("\"");
+                pw.println("<Cell><Data ss:Type=\"String\">" + escapeXml(v == null ? "" : v.toString()) + "</Data></Cell>");
             }
-            pw.println(sb);
+            pw.println("</Row>");
         }
+        pw.println("</Table></Worksheet>");
+    }
+
+    private void writeTopMembersExcelSheet(PrintWriter pw) {
+        pw.println("<Worksheet ss:Name=\"Top hội viên\"><Table>");
+        String[] headers = {"#", "Tên hội viên", "Email", "Số lần tham gia", "HĐ gần nhất", "Trạng thái"};
+        pw.println("<Row>");
+        for (String h : headers) pw.println("<Cell><Data ss:Type=\"String\">" + escapeXml(h) + "</Data></Cell>");
+        pw.println("</Row>");
+        for (Object[] row : topMembersFullData) {
+            pw.println("<Row>");
+            for (Object val : row) {
+                pw.println("<Cell><Data ss:Type=\"String\">" + escapeXml(val == null ? "" : val.toString()) + "</Data></Cell>");
+            }
+            pw.println("</Row>");
+        }
+        pw.println("</Table></Worksheet>");
+    }
+    
+    private String escapeXml(String s) {
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
     }
 
     // ══════════════════════════════════════════════════════════════════════════
