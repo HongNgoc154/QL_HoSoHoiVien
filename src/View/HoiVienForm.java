@@ -657,8 +657,12 @@ public class HoiVienForm extends JPanel {
                     String link =
                         "http://localhost:8080/xacnhan?token="
                         + token;
-                    EmailSender.send(emailHV, "Xác nhận yêu cầu rời hội",
-                        "Vui lòng xác nhận yêu cầu rời hội trong 24 giờ tại link: " + link);
+                    String emailBody = String.format("Kính gửi hội viên %s\n\n"
+                        + "Hệ thống đã tiếp nhận yêu cầu rời hội của bạn.\n"
+                        + "Vui lòng xác nhận trong vòng 24 giờ tại đường dẫn sau:\n%s\n\n"
+                        + "Hoặc bấm nút xác nhận trong trang hồ sơ mở ra để hoàn tất.\n"
+                        + "Lưu ý: Link sẽ hết hiệu lực sau 24 giờ kể từ lúc tạo yêu cầu.", tenHV, link);
+                    EmailSender.send(emailHV, "Xác nhận yêu cầu rời hội", emailBody);
                 }
                 JOptionPane.showMessageDialog(dlg, "Đã tạo yêu cầu rời hội (Chờ xác nhận).");
                 dlg.dispose();

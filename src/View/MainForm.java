@@ -2,6 +2,7 @@ package View;
 
 import Util.UITheme;
 import Util.Session;
+import Util.EmailSender;
 import model.TaiKhoan;
 import controller.AuthController;
 
@@ -630,17 +631,24 @@ public class MainForm extends JFrame {
 
     private void showNotificationDetail(int idThongBao, JDialog parent, JButton btnBell) {
         try (Connection conn = DatabaseHelper.getConnection()) {
+            ensureLeaveRequestNotificationColumn(conn);
             PreparedStatement ps = conn.prepareStatement(
-                "SELECT tb.id, tb.noiDung, dkt.id idDangKyTam, dkt.idHoiVien, dkt.idHoatDong, "
+                "SELECT tb.id, tb.noiDung, tb.idYeuCauRoiHoi, dkt.id idDangKyTam, dkt.idHoiVien, dkt.idHoatDong, "
               + "dkt.thoiGianDangKy, hv.tenHoiVien, hv.maHoiVien, hd.tenHoatDong "
-              + "FROM ThongBao tb JOIN DangKyTam dkt ON tb.idDangKyTam=dkt.id "
-              + "JOIN HoiVien hv ON dkt.idHoiVien=hv.id "
-              + "JOIN HoatDong hd ON dkt.idHoatDong=hd.id WHERE tb.id=?");
+              +"FROM ThongBao tb "
+              + "LEFT JOIN DangKyTam dkt ON tb.idDangKyTam=dkt.id "
+              + "LEFT JOIN HoiVien hv ON dkt.idHoiVien=hv.id "
+              + "LEFT JOIN HoatDong hd ON dkt.idHoatDong=hd.id WHERE tb.id=?");
             ps.setInt(1, idThongBao);
             ResultSet rs = ps.executeQuery();
             if (!rs.next()) return;
             conn.createStatement().executeUpdate(
                 "UPDATE ThongBao SET daDoc=1 WHERE id=" + idThongBao);
+            int idYeuCau = rs.getInt("idYeuCauRoiHoi");
+            if (idYeuCau > 0) {
+                showLeaveRequestDetail(conn, idYeuCau, parent, btnBell);
+                return;
+            }
 
             JDialog d = new JDialog(this, "Duyệt đăng ký", true);
             d.setSize(520, 320); d.setLocationRelativeTo(this);
@@ -669,6 +677,127 @@ public class MainForm extends JFrame {
             btnBell.setText("🔔 " + getUnreadNotificationCount());
             parent.dispose();
         } catch (Exception ignored) {}
+    }
+    
+    
+    private void showLeaveRequestDetail(Connection conn, int idYeuCau, JDialog parent, JButton btnBell) {
+        try {
+            PreparedStatement ps = conn.prepareStatement(
+                "SELECT y.id, y.lyDo, y.nguonYeuCau, y.trangThai, y.thoiGianTao, y.thoiGianXacNhan, "
+                    + "h.id idHoiVien, h.maHoiVien, h.tenHoiVien, h.ngaySinh, h.gioiTinh, h.sdt, h.email, h.diaChi, h.hinhAnh, h.trangThai trangThaiHoiVien "
+                    + "FROM YeuCauRoiHoi y JOIN HoiVien h ON y.idHoiVien=h.id WHERE y.id=?");
+            ps.setInt(1, idYeuCau);
+            ResultSet rs = ps.executeQuery();
+            if (!rs.next()) return;
+
+            JDialog d = new JDialog(this, "Chi tiết yêu cầu rời hội", true);
+            d.setSize(700, 540);
+            d.setLocationRelativeTo(this);
+            JPanel wrap = new JPanel(new BorderLayout(10, 10));
+            wrap.setBorder(new EmptyBorder(16, 16, 16, 16));
+            wrap.setBackground(Color.WHITE);
+
+            JTextArea ta = new JTextArea(
+                "👤 THÔNG TIN HỘI VIÊN\n"
+                + "Mã hội viên: " + rs.getString("maHoiVien") + "\n"
+                + "Họ tên: " + rs.getString("tenHoiVien") + "\n"
+                + "Ngày sinh: " + rs.getString("ngaySinh") + "\n"
+                + "Giới tính: " + rs.getString("gioiTinh") + "\n"
+                + "Số điện thoại: " + rs.getString("sdt") + "\n"
+                + "Email: " + rs.getString("email") + "\n"
+                + "Địa chỉ: " + rs.getString("diaChi") + "\n"
+                + "Trạng thái hiện tại: " + rs.getString("trangThaiHoiVien") + "\n\n"
+                + "📋 THÔNG TIN YÊU CẦU RỜI HỘI\n"
+                + "📅 Ngày yêu cầu: " + rs.getString("thoiGianTao") + "\n"
+                + "📝 Lý do: " + rs.getString("lyDo") + "\n"
+                + "📌 Nguồn yêu cầu: " + rs.getString("nguonYeuCau") + "\n"
+                + "⏱ Trạng thái: " + rs.getString("trangThai"));
+            ta.setEditable(false);
+            ta.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+            ta.setLineWrap(true);
+            ta.setWrapStyleWord(true);
+
+            JButton approve = UITheme.primaryButton("✔ Duyệt");
+            JButton cancel = UITheme.dangerButton("❌ Hủy");
+            JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+            actions.setOpaque(false);
+            actions.add(cancel);
+            actions.add(approve);
+
+            int idHoiVien = rs.getInt("idHoiVien");
+            String email = rs.getString("email");
+            String tenHV = rs.getString("tenHoiVien");
+            approve.addActionListener(ev -> approveLeaveRequest(idYeuCau, idHoiVien, tenHV, email, d));
+            cancel.addActionListener(ev -> cancelLeaveRequest(idYeuCau, d));
+
+            wrap.add(new JScrollPane(ta), BorderLayout.CENTER);
+            wrap.add(actions, BorderLayout.SOUTH);
+            d.add(wrap);
+            d.setVisible(true);
+            btnBell.setText("🔔 " + getUnreadNotificationCount());
+            parent.dispose();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi tải chi tiết yêu cầu rời hội: " + ex.getMessage());
+        }
+    }
+
+    private void approveLeaveRequest(int idYeuCau, int idHoiVien, String tenHV, String email, JDialog d) {
+        try (Connection conn = DatabaseHelper.getConnection()) {
+            PreparedStatement check = conn.prepareStatement("SELECT trangThai FROM YeuCauRoiHoi WHERE id=?");
+            check.setInt(1, idYeuCau);
+            ResultSet cr = check.executeQuery();
+            if (!cr.next()) return;
+            String st = cr.getString(1);
+            if (!"Chờ xác nhận".equalsIgnoreCase(st) && !"Đã xác nhận".equalsIgnoreCase(st)) {
+                JOptionPane.showMessageDialog(d, "Yêu cầu đã được xử lý trước đó.");
+                return;
+            }
+            PreparedStatement upReq = conn.prepareStatement("UPDATE YeuCauRoiHoi SET trangThai=N'Đã duyệt', thoiGianDuyet=GETDATE() WHERE id=?");
+            upReq.setInt(1, idYeuCau);
+            upReq.executeUpdate();
+            PreparedStatement upMem = conn.prepareStatement("UPDATE HoiVien SET trangThai=N'Đã rời', ngayRoi=GETDATE() WHERE id=?");
+            upMem.setInt(1, idHoiVien);
+            upMem.executeUpdate();
+            if (email != null && !email.trim().isEmpty()) {
+                EmailSender.send(email, "Phản hồi yêu cầu rời hội",
+                    "Chào bạn,\n\nYêu cầu rời hội của bạn đã được duyệt thành công.\n\nKể từ thời điểm này, bạn sẽ không còn nhận được bất kỳ thông báo nào liên quan đến các hoạt động sắp tới.\n\nCảm ơn bạn đã đồng hành cùng chúng tôi trong suốt thời gian qua.\n\nTrân trọng.");
+            }
+            JOptionPane.showMessageDialog(d, "Đã duyệt yêu cầu rời hội cho " + tenHV + ".");
+            d.dispose();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(d, "Lỗi duyệt yêu cầu: " + ex.getMessage());
+        }
+    }
+
+    private void cancelLeaveRequest(int idYeuCau, JDialog d) {
+        try (Connection conn = DatabaseHelper.getConnection()) {
+            PreparedStatement check = conn.prepareStatement("SELECT trangThai FROM YeuCauRoiHoi WHERE id=?");
+            check.setInt(1, idYeuCau);
+            ResultSet cr = check.executeQuery();
+            if (!cr.next()) return;
+            String st = cr.getString(1);
+            if (!"Chờ xác nhận".equalsIgnoreCase(st) && !"Đã xác nhận".equalsIgnoreCase(st)) {
+                JOptionPane.showMessageDialog(d, "Yêu cầu đã được xử lý trước đó.");
+                return;
+            }
+            PreparedStatement upReq = conn.prepareStatement("UPDATE YeuCauRoiHoi SET trangThai=N'Đã hủy' WHERE id=?");
+            upReq.setInt(1, idYeuCau);
+            upReq.executeUpdate();
+            JOptionPane.showMessageDialog(d, "Đã hủy yêu cầu rời hội.");
+            d.dispose();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(d, "Lỗi hủy yêu cầu: " + ex.getMessage());
+        }
+    }
+
+    private void ensureLeaveRequestNotificationColumn(Connection conn) {
+        try {
+            conn.createStatement().executeUpdate(
+                "IF COL_LENGTH('ThongBao','idYeuCauRoiHoi') IS NULL "
+                    + "ALTER TABLE ThongBao ADD idYeuCauRoiHoi INT NULL "
+                    + "CONSTRAINT FK_ThongBao_YeuCauRoiHoi FOREIGN KEY REFERENCES YeuCauRoiHoi(id)");
+        } catch (Exception ignored) {
+        }
     }
 
     private void approveRegister(int idDkt, int idHv, int idHd, JDialog d) {
