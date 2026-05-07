@@ -634,7 +634,7 @@ public class MainForm extends JFrame {
             ensureLeaveRequestNotificationColumn(conn);
             PreparedStatement ps = conn.prepareStatement(
                 "SELECT tb.id, tb.noiDung, tb.idYeuCauRoiHoi, dkt.id idDangKyTam, dkt.idHoiVien, dkt.idHoatDong, "
-              + "dkt.thoiGianDangKy, hv.tenHoiVien, hv.maHoiVien, hd.tenHoatDong "
+              + "dkt.thoiGianDangKy, hv.tenHoiVien, hv.maHoiVien, hv.trangThai trangThaiHoiVien, hd.tenHoatDong "
               +"FROM ThongBao tb "
               + "LEFT JOIN DangKyTam dkt ON tb.idDangKyTam=dkt.id "
               + "LEFT JOIN HoiVien hv ON dkt.idHoiVien=hv.id "
@@ -653,11 +653,30 @@ public class MainForm extends JFrame {
             JDialog d = new JDialog(this, "Duyệt đăng ký", true);
             d.setSize(520, 320); d.setLocationRelativeTo(this);
             JTextArea ta = new JTextArea(
-                "Hội viên: " + rs.getString("tenHoiVien") + " (" + rs.getString("maHoiVien") + ")\n"
-              + "Hoạt động: " + rs.getString("tenHoatDong") + "\n"
-              + "Thời gian đăng ký: " + rs.getString("thoiGianDangKy") + "\n\n"
-              + rs.getString("noiDung"));
+                "👤 THÔNG TIN HỘI VIÊN\n"
+                + "Mã hội viên: " + safeValue(rs.getString("maHoiVien")) + "\n"
+                + "Họ tên: " + safeValue(rs.getString("tenHoiVien")) + "\n"
+                + "Ngày sinh: " + safeValue(String.valueOf(rs.getDate("ngaySinh"))) + "\n"
+                + "Giới tính: " + safeValue(rs.getString("gioiTinh")) + "\n"
+                + "Số điện thoại: " + safeValue(rs.getString("sdt")) + "\n"
+                + "Email: " + safeValue(rs.getString("email")) + "\n"
+                + "Địa chỉ: " + safeValue(rs.getString("diaChi")) + "\n"
+                + "Ảnh hội viên: " + safeValue(rs.getString("hinhAnh")) + "\n"
+                + "Trạng thái hiện tại: " + safeValue(rs.getString("trangThaiHoiVien")) + "\n\n"
+                + "📋 THÔNG TIN YÊU CẦU RỜI HỘI\n"
+                + "📅 Ngày yêu cầu: " + safeValue(String.valueOf(rs.getTimestamp("thoiGianTao"))) + "\n"
+                + "📝 Lý do rời hội: " + safeValue(rs.getString("lyDo")) + "\n"
+                + "📌 Nguồn yêu cầu: " + safeValue(rs.getString("nguonYeuCau")) + "\n"
+                + "⏱ Trạng thái yêu cầu: " + safeValue(rs.getString("trangThai")) + "\n"
+                + "✅ Thời gian xác nhận: " + safeValue(String.valueOf(rs.getTimestamp("thoiGianXacNhan"))));
             ta.setEditable(false); ta.setLineWrap(true);
+            
+            JLabel lbStatus = new JLabel("Trạng thái hội viên: " + rs.getString("trangThaiHoiVien"));
+            lbStatus.setBorder(new EmptyBorder(8, 8, 8, 8));
+            String stHv = rs.getString("trangThaiHoiVien");
+            if (stHv != null && stHv.trim().equalsIgnoreCase("Đã rời")) {
+                lbStatus.setForeground(Color.RED);
+            }
 
             JButton ok = UITheme.primaryButton("✔ Xác nhận");
             JButton no = UITheme.dangerButton("❌ Từ chối");
@@ -667,10 +686,18 @@ public class MainForm extends JFrame {
             int idDkt = rs.getInt("idDangKyTam");
             int idHv  = rs.getInt("idHoiVien");
             int idHd  = rs.getInt("idHoatDong");
+            RegisterValidationResult vr = validateRegisterData(conn, idHv, idHd);
+            if (!vr.valid) {
+                ok.setEnabled(false);
+                ok.setToolTipText(vr.message);
+            }
             ok.addActionListener(ev -> approveRegister(idDkt, idHv, idHd, d));
             no.addActionListener(ev -> rejectRegister(idDkt, d));
 
-            d.add(new JScrollPane(ta), BorderLayout.CENTER);
+            JPanel center = new JPanel(new BorderLayout());
+            center.add(lbStatus, BorderLayout.NORTH);
+            center.add(new JScrollPane(ta), BorderLayout.CENTER);
+            d.add(center, BorderLayout.CENTER);
             d.add(p, BorderLayout.SOUTH);
             d.setVisible(true);
 
@@ -681,6 +708,13 @@ public class MainForm extends JFrame {
     
     
     private void showLeaveRequestDetail(Connection conn, int idYeuCau, JDialog parent, JButton btnBell) {
+        JDialog loading = new JDialog(this, "Đang tải", true);
+        loading.setSize(260, 90);
+        loading.setLocationRelativeTo(this);
+        loading.setLayout(new BorderLayout());
+        loading.add(new JLabel("Đang tải chi tiết yêu cầu rời hội...", SwingConstants.CENTER), BorderLayout.CENTER);
+
+        SwingUtilities.invokeLater(() -> loading.setVisible(true));
         try {
             PreparedStatement ps = conn.prepareStatement(
                 "SELECT y.id, y.lyDo, y.nguonYeuCau, y.trangThai, y.thoiGianTao, y.thoiGianXacNhan, "
@@ -688,41 +722,75 @@ public class MainForm extends JFrame {
                     + "FROM YeuCauRoiHoi y JOIN HoiVien h ON y.idHoiVien=h.id WHERE y.id=?");
             ps.setInt(1, idYeuCau);
             ResultSet rs = ps.executeQuery();
-            if (!rs.next()) return;
+            if (!rs.next()) {
+                JOptionPane.showMessageDialog(this, "Không tìm thấy dữ liệu yêu cầu rời hội.");
+                return;
+            }
 
             JDialog d = new JDialog(this, "Chi tiết yêu cầu rời hội", true);
-            d.setSize(700, 540);
+            d.setSize(760, 560);
             d.setLocationRelativeTo(this);
-            JPanel wrap = new JPanel(new BorderLayout(10, 10));
-            wrap.setBorder(new EmptyBorder(16, 16, 16, 16));
-            wrap.setBackground(Color.WHITE);
+            JPanel root = new JPanel(new BorderLayout(12, 12));
+            root.setBorder(new EmptyBorder(16, 16, 16, 16));
+            root.setBackground(new Color(245, 247, 251));
+
+            JPanel card = new JPanel(new BorderLayout(10, 10));
+            card.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(230, 235, 242)),
+                new EmptyBorder(14, 14, 14, 14)
+            ));
+            card.setBackground(Color.WHITE);
+
+            JLabel header = new JLabel("TỜ HỒ SƠ YÊU CẦU RỜI HỘI");
+            header.setOpaque(true);
+            header.setBackground(new Color(22, 119, 255));
+            header.setForeground(Color.WHITE);
+            header.setBorder(new EmptyBorder(10, 12, 10, 12));
+            header.setFont(new Font("Segoe UI", Font.BOLD, 16));
 
             JTextArea ta = new JTextArea(
                 "👤 THÔNG TIN HỘI VIÊN\n"
-                + "Mã hội viên: " + rs.getString("maHoiVien") + "\n"
-                + "Họ tên: " + rs.getString("tenHoiVien") + "\n"
-                + "Ngày sinh: " + rs.getString("ngaySinh") + "\n"
-                + "Giới tính: " + rs.getString("gioiTinh") + "\n"
-                + "Số điện thoại: " + rs.getString("sdt") + "\n"
-                + "Email: " + rs.getString("email") + "\n"
-                + "Địa chỉ: " + rs.getString("diaChi") + "\n"
-                + "Trạng thái hiện tại: " + rs.getString("trangThaiHoiVien") + "\n\n"
+                + "Mã hội viên: " + safeValue(rs.getString("maHoiVien")) + "\n"
+                + "Họ tên: " + safeValue(rs.getString("tenHoiVien")) + "\n"
+                + "Ngày sinh: " + safeValue(String.valueOf(rs.getDate("ngaySinh"))) + "\n"
+                + "Giới tính: " + safeValue(rs.getString("gioiTinh")) + "\n"
+                + "Số điện thoại: " + safeValue(rs.getString("sdt")) + "\n"
+                + "Email: " + safeValue(rs.getString("email")) + "\n"
+                + "Địa chỉ: " + safeValue(rs.getString("diaChi")) + "\n"
+                + "Ảnh hội viên: " + safeValue(rs.getString("hinhAnh")) + "\n"
+                + "Trạng thái hiện tại: " + safeValue(rs.getString("trangThaiHoiVien")) + "\n\n"
                 + "📋 THÔNG TIN YÊU CẦU RỜI HỘI\n"
-                + "📅 Ngày yêu cầu: " + rs.getString("thoiGianTao") + "\n"
-                + "📝 Lý do: " + rs.getString("lyDo") + "\n"
-                + "📌 Nguồn yêu cầu: " + rs.getString("nguonYeuCau") + "\n"
-                + "⏱ Trạng thái: " + rs.getString("trangThai"));
+                + "📅 Ngày yêu cầu: " + safeValue(String.valueOf(rs.getTimestamp("thoiGianTao"))) + "\n"
+                + "📝 Lý do rời hội: " + safeValue(rs.getString("lyDo")) + "\n"
+                + "📌 Nguồn yêu cầu: " + safeValue(rs.getString("nguonYeuCau")) + "\n"
+                + "⏱ Trạng thái yêu cầu: " + safeValue(rs.getString("trangThai")) + "\n"
+                + "✅ Thời gian xác nhận: " + safeValue(String.valueOf(rs.getTimestamp("thoiGianXacNhan"))));
             ta.setEditable(false);
             ta.setFont(new Font("Segoe UI", Font.PLAIN, 14));
             ta.setLineWrap(true);
             ta.setWrapStyleWord(true);
+            ta.setBackground(Color.WHITE);
 
-            JButton approve = UITheme.primaryButton("✔ Duyệt");
-            JButton cancel = UITheme.dangerButton("❌ Hủy");
+            String trangThaiHoiVien = safeValue(rs.getString("trangThaiHoiVien"));
+            JLabel status = new JLabel("Trạng thái hội viên: " + trangThaiHoiVien);
+            status.setBorder(new EmptyBorder(4, 2, 8, 2));
+            status.setFont(new Font("Segoe UI", Font.BOLD, 13));
+            if ("Đã rời".equalsIgnoreCase(trangThaiHoiVien)) status.setForeground(Color.RED);
+
+            JButton approve = UITheme.primaryButton("✔ Duyệt yêu cầu");
+            JButton cancel = UITheme.dangerButton("❌ Hủy yêu cầu");
             JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
             actions.setOpaque(false);
             actions.add(cancel);
             actions.add(approve);
+            
+            String yeuCauStatus = safeValue(rs.getString("trangThai"));
+            boolean processed = "Đã duyệt".equalsIgnoreCase(yeuCauStatus) || "Đã hủy".equalsIgnoreCase(yeuCauStatus);
+            if (processed) {
+                approve.setEnabled(false);
+                cancel.setEnabled(false);
+                approve.setToolTipText("Yêu cầu đã được xử lý trước đó.");
+            }
 
             int idHoiVien = rs.getInt("idHoiVien");
             String email = rs.getString("email");
@@ -730,15 +798,28 @@ public class MainForm extends JFrame {
             approve.addActionListener(ev -> approveLeaveRequest(idYeuCau, idHoiVien, tenHV, email, d));
             cancel.addActionListener(ev -> cancelLeaveRequest(idYeuCau, d));
 
-            wrap.add(new JScrollPane(ta), BorderLayout.CENTER);
-            wrap.add(actions, BorderLayout.SOUTH);
-            d.add(wrap);
+            JPanel center = new JPanel(new BorderLayout());
+            center.setOpaque(false);
+            center.add(status, BorderLayout.NORTH);
+            center.add(new JScrollPane(ta), BorderLayout.CENTER);
+
+            card.add(header, BorderLayout.NORTH);
+            card.add(center, BorderLayout.CENTER);
+            card.add(actions, BorderLayout.SOUTH);
+            root.add(card, BorderLayout.CENTER);
+            d.add(root);
             d.setVisible(true);
             btnBell.setText("🔔 " + getUnreadNotificationCount());
             parent.dispose();
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Lỗi tải chi tiết yêu cầu rời hội: " + ex.getMessage());
-        }
+            } finally {
+            loading.dispose();
+        } 
+    }
+    
+    private String safeValue(String value) {
+        return value == null || "null".equalsIgnoreCase(value) ? "" : value;
     }
 
     private void approveLeaveRequest(int idYeuCau, int idHoiVien, String tenHV, String email, JDialog d) {
@@ -799,19 +880,72 @@ public class MainForm extends JFrame {
         } catch (Exception ignored) {
         }
     }
+    
+    
+    private static class RegisterValidationResult {
+        private boolean valid;
+        private boolean memberLeft;
+        private String memberStatus;
+        private String message;
+
+        RegisterValidationResult(boolean valid, boolean memberLeft, String memberStatus, String message) {
+            this.valid = valid;
+            this.memberLeft = memberLeft;
+            this.memberStatus = memberStatus;
+            this.message = message;
+        }
+    }
+
+    private RegisterValidationResult validateRegisterData(Connection conn, int idHv, int idHd) throws SQLException {
+        if (idHv <= 0) return new RegisterValidationResult(false, false, null, "Hội viên không hợp lệ.");
+        if (idHd <= 0) return new RegisterValidationResult(false, false, null, "Hoạt động không hợp lệ.");
+
+        String memberStatus = null;
+        PreparedStatement hvCheck = conn.prepareStatement("SELECT trangThai FROM HoiVien WHERE id=?");
+        hvCheck.setInt(1, idHv);
+        ResultSet hvRs = hvCheck.executeQuery();
+        if (!hvRs.next()) return new RegisterValidationResult(false, false, null, "Hội viên không tồn tại.");
+        memberStatus = hvRs.getString("trangThai");
+
+        PreparedStatement hdCheck = conn.prepareStatement("SELECT 1 FROM HoatDong WHERE id=?");
+        hdCheck.setInt(1, idHd);
+        if (!hdCheck.executeQuery().next()) return new RegisterValidationResult(false, false, memberStatus, "Hoạt động không tồn tại.");
+
+        if (memberStatus != null && memberStatus.trim().equalsIgnoreCase("Đã rời")) {
+            return new RegisterValidationResult(false, true, memberStatus, "Hội viên đã rời hội và không thể tham gia hoạt động.");
+        }
+
+        PreparedStatement joinedCheck = conn.prepareStatement("SELECT 1 FROM ThamGia WHERE idHoiVien=? AND idHoatDong=?");
+        joinedCheck.setInt(1, idHv);
+        joinedCheck.setInt(2, idHd);
+        if (joinedCheck.executeQuery().next()) {
+            return new RegisterValidationResult(false, false, memberStatus, "Hội viên đã đăng ký hoạt động này.");
+        }
+
+        return new RegisterValidationResult(true, false, memberStatus, null);
+    }
 
     private void approveRegister(int idDkt, int idHv, int idHd, JDialog d) {
         try (Connection conn = DatabaseHelper.getConnection()) {
-            PreparedStatement chk = conn.prepareStatement(
-                "SELECT 1 FROM ThamGia WHERE idHoiVien=? AND idHoatDong=?");
-            chk.setInt(1, idHv); chk.setInt(2, idHd);
-            if (!chk.executeQuery().next()) {
-                PreparedStatement ins = conn.prepareStatement(
-                    "INSERT INTO ThamGia(idHoiVien,idHoatDong,trangThai,ngayDangKy) VALUES(?,?,N'Đã đăng ký',GETDATE())");
-                ins.setInt(1, idHv); ins.setInt(2, idHd); ins.executeUpdate();
+            if (idDkt <= 0) {
+                JOptionPane.showMessageDialog(d, "Đăng ký tạm không hợp lệ.");
+                return;
             }
-            conn.createStatement().executeUpdate(
-                "UPDATE DangKyTam SET trangThai=N'Đã duyệt' WHERE id=" + idDkt);
+            RegisterValidationResult vr = validateRegisterData(conn, idHv, idHd);
+            if (!vr.valid) {
+                JOptionPane.showMessageDialog(d, vr.message);
+                return;
+            }
+
+            PreparedStatement ins = conn.prepareStatement(
+                "INSERT INTO ThamGia(idHoiVien,idHoatDong,trangThai,ngayDangKy) VALUES(?,?,N'Đã đăng ký',GETDATE())");
+            ins.setInt(1, idHv);
+            ins.setInt(2, idHd);
+            ins.executeUpdate();
+
+            PreparedStatement up = conn.prepareStatement("UPDATE DangKyTam SET trangThai=N'Đã duyệt' WHERE id=?");
+            up.setInt(1, idDkt);
+            up.executeUpdate();
             JOptionPane.showMessageDialog(d, "Đã duyệt đăng ký.");
             d.dispose();
         } catch (Exception ex) {
@@ -821,8 +955,9 @@ public class MainForm extends JFrame {
 
     private void rejectRegister(int idDkt, JDialog d) {
         try (Connection conn = DatabaseHelper.getConnection()) {
-            conn.createStatement().executeUpdate(
-                "UPDATE DangKyTam SET trangThai=N'Từ chối' WHERE id=" + idDkt);
+            PreparedStatement up = conn.prepareStatement("UPDATE DangKyTam SET trangThai=N'Từ chối' WHERE id=?");
+            up.setInt(1, idDkt);
+            up.executeUpdate();
             JOptionPane.showMessageDialog(d, "Đã từ chối đăng ký.");
             d.dispose();
         } catch (Exception ex) {

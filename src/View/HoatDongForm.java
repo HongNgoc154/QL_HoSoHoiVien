@@ -418,7 +418,7 @@ public class HoatDongForm extends JPanel {
     private String str(Object o) { return o == null ? "" : o.toString(); }
 
     private void sendActivityEmail(int idHoatDong) {
-    String sql = "SELECT * FROM HoatDong WHERE id=?";
+    String sql = "SELECT * FROM HoatDong WHERE id=? AND trangThai=N'Hoạt động'";
 
     try (Connection conn = DatabaseHelper.getConnection();
          PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -506,8 +506,13 @@ public class HoatDongForm extends JPanel {
             pHd.setInt(1,idHoatDong); ResultSet hd = pHd.executeQuery(); if(!hd.next()) return;
             Timestamp han = hd.getTimestamp("hanDangKy");
             if (han != null && System.currentTimeMillis() > han.getTime()) { JOptionPane.showMessageDialog(dlg, "Hoạt động đã hết hạn đăng ký"); return; }
-            PreparedStatement pHv = conn.prepareStatement("SELECT id, tenHoiVien FROM HoiVien WHERE maHoiVien=?");
+            PreparedStatement pHv = conn.prepareStatement("SELECT id, tenHoiVien, trangThai FROM HoiVien WHERE maHoiVien=?");
             pHv.setString(1, maHoiVien); ResultSet hv = pHv.executeQuery(); if(!hv.next()){JOptionPane.showMessageDialog(dlg,"Hội viên không tồn tại"); return;}
+            String trangThaiHv = hv.getString("trangThai");
+            if (trangThaiHv != null && trangThaiHv.trim().equalsIgnoreCase("Đã rời")) {
+                JOptionPane.showMessageDialog(dlg,"Hội viên đã rời hội và không thể tham gia hoạt động.");
+                return;
+            }
             int idHv = hv.getInt("id"); String ten = hv.getString("tenHoiVien");
             PreparedStatement chk = conn.prepareStatement("SELECT 1 FROM DangKyTam WHERE idHoiVien=? AND idHoatDong=?");
             chk.setInt(1,idHv); chk.setInt(2,idHoatDong); if(chk.executeQuery().next()){JOptionPane.showMessageDialog(dlg,"Đăng ký trùng."); return;}

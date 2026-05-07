@@ -92,8 +92,9 @@ public class EmailConfirmServer {
                 ups.setString(1, token);
                 int updated = ups.executeUpdate();
                 if (updated > 0) {
-                    PreparedStatement notifyPs = conn.prepareStatement("INSERT INTO ThongBao(noiDung,idDangKyTam) VALUES(?,NULL)");
+                    PreparedStatement notifyPs = conn.prepareStatement("INSERT INTO ThongBao(noiDung,idDangKyTam,idYeuCauRoiHoi,daDoc,thoiGian) VALUES(?,NULL,?,0,GETDATE())");
                     notifyPs.setString(1, "Hội viên " + rs.getString("tenHoiVien") + " đã xác nhận rời hội");
+                    notifyPs.setInt(2, rs.getInt("id"));
                     notifyPs.executeUpdate();
                     status = "Đã xác nhận";
                     confirmed = true;
