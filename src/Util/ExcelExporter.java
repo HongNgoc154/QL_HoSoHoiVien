@@ -1,8 +1,12 @@
 package Util;
 
+
+import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
-import java.io.*;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
@@ -14,46 +18,56 @@ public class ExcelExporter {
     public static void exportToCSV(JTable table, String defaultName, java.awt.Component parent) {
         JFileChooser fc = new JFileChooser();
         fc.setSelectedFile(new File(defaultName + "_" +
-            new SimpleDateFormat("yyyyMMdd_HHmm").format(new Date()) + ".csv"));
+            new SimpleDateFormat("yyyyMMdd_HHmm").format(new Date()) + ".xlsx"));
         int result = fc.showSaveDialog(parent);
         if (result != JFileChooser.APPROVE_OPTION) return;
 
         File file = fc.getSelectedFile();
-        try (PrintWriter pw = new PrintWriter(new OutputStreamWriter(
-                new FileOutputStream(file), "UTF-8"))) {
+        if (!file.getName().toLowerCase().endsWith(".xlsx")) {
+            file = new File(file.getAbsolutePath() + ".xlsx");
+        }
 
-            // BOM for Excel UTF-8
-            pw.write('\uFEFF');
-
+        try (Workbook wb = new XSSFWorkbook(); FileOutputStream fos = new FileOutputStream(file)) {
             DefaultTableModel model = (DefaultTableModel) table.getModel();
-
+            Sheet sheet = wb.createSheet(defaultName);
             // Header
-            StringBuilder sb = new StringBuilder();
+            CellStyle headerStyle = wb.createCellStyle();
+            Font hFont = wb.createFont();
+            hFont.setBold(true);
+            headerStyle.setFont(hFont);
+            headerStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+            headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            headerStyle.setAlignment(HorizontalAlignment.CENTER);
+
+            Row headerRow = sheet.createRow(0);
             for (int i = 0; i < model.getColumnCount(); i++) {
-                if (i > 0) sb.append(",");
-                sb.append("\"").append(model.getColumnName(i)).append("\"");
+                Cell cell = headerRow.createCell(i);
+                cell.setCellValue(model.getColumnName(i));
+                cell.setCellStyle(headerStyle);
             }
-            pw.println(sb);
+//            pw.println(sb);
 
             // Rows
             for (int r = 0; r < model.getRowCount(); r++) {
-                sb = new StringBuilder();
+                Row row = sheet.createRow(r + 1);
                 for (int c = 0; c < model.getColumnCount(); c++) {
-                    if (c > 0) sb.append(",");
+//                    if (c > 0) sb.append(",");
                     Object val = model.getValueAt(r, c);
-                    String s = val == null ? "" : val.toString();
-                    sb.append("\"").append(s.replace("\"", "\"\"")).append("\"");
+                    row.createCell(c).setCellValue(val == null ? "" : val.toString());
                 }
-                pw.println(sb);
+//                pw.println(sb);
             }
+            
+            for (int i = 0; i < model.getColumnCount(); i++) sheet.autoSizeColumn(i);
+            wb.write(fos);
 
             JOptionPane.showMessageDialog(parent,
-                "Xuất file thành công!\n" + file.getAbsolutePath(),
+                "Xuất file Excel thành công!\n" + file.getAbsolutePath(),
                 "Thành công", JOptionPane.INFORMATION_MESSAGE);
 
         } catch (Exception e) {
             JOptionPane.showMessageDialog(parent,
-                "Lỗi xuất file: " + e.getMessage(),
+                "Lỗi xuất file Excel: " + e.getMessage(),
                 "Lỗi", JOptionPane.ERROR_MESSAGE);
         }
     }

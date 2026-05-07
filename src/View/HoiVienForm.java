@@ -237,8 +237,9 @@ public class HoiVienForm extends JPanel {
         String tt       = str(model.getValueAt(row, COL_TRANGTHAI));
         String hinhAnh  = str(model.getValueAt(row, COL_HINHANH));
         String diaChi   = str(model.getValueAt(row, COL_DIACHI));
+        String ngayTG   = str(model.getValueAt(row, COL_NGAYTG));
 
-        JDialog dlg = createDialog("Chi tiết hội viên", 560, 520);
+        JDialog dlg = createDialog("Chi tiết hội viên", 700, 560);
         JPanel content = new JPanel(new BorderLayout());
         content.setBackground(Color.WHITE);
 
@@ -268,7 +269,7 @@ public class HoiVienForm extends JPanel {
         // Info grid
         JPanel info = new JPanel(new GridBagLayout());
         info.setBackground(Color.WHITE);
-        info.setBorder(new EmptyBorder(18, 24, 10, 24));
+        info.setBorder(new EmptyBorder(22, 28, 16, 28));
         GridBagConstraints gc = new GridBagConstraints();
         gc.insets = new Insets(5, 4, 5, 4);
         gc.anchor = GridBagConstraints.WEST;
@@ -279,6 +280,7 @@ public class HoiVienForm extends JPanel {
         addDetailRow(info, gc, 3, "Email:",         email);
         addDetailRow(info, gc, 4, "Địa chỉ:",       diaChi);
         addDetailRow(info, gc, 5, "Trạng thái:",    tt);
+        addDetailRow(info, gc, 6, "Ngày tham gia:",  ngayTG);
 //        if (!hinhAnh.isEmpty()) {
 //            gc.gridx=0; gc.gridy=6; gc.gridwidth=1;
 //            JLabel lHa = new JLabel("Hình ảnh:");
@@ -299,9 +301,11 @@ public class HoiVienForm extends JPanel {
         btns.setBackground(Color.decode("#F8FAFC"));
         btns.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, UITheme.BORDER_COLOR));
         JButton btnLeaveReq = UITheme.dangerButton("Yêu cầu rời hội");
+        JButton btnPdf = createPdfButton();
         JButton btnEdit  = UITheme.outlineButton("✏ Chỉnh sửa");
         JButton btnClose = UITheme.primaryButton("Đóng");
         btns.add(btnLeaveReq);
+        btns.add(btnPdf);
         btns.add(btnEdit);
         btns.add(btnClose);
 
@@ -313,7 +317,38 @@ public class HoiVienForm extends JPanel {
         btnEdit.addActionListener(e -> { dlg.dispose(); openForm(row); });
         btnLeaveReq.addActionListener(e -> openLeaveRequestDialog(
             (int) model.getValueAt(row, COL_ID), ma, ten, email, dlg));
+        btnPdf.addActionListener(e -> {
+            HoiVienPdfExporter.MemberProfileData data = new HoiVienPdfExporter.MemberProfileData();
+            data.maHoiVien = ma;
+            data.tenHoiVien = ten;
+            data.gioiTinh = gt;
+            data.ngaySinh = ngaySinh;
+            data.sdt = sdt;
+            data.email = email;
+            data.diaChi = diaChi;
+            data.trangThai = tt;
+            data.ngayThamGia = ngayTG;
+            data.hinhAnh = hinhAnh;
+            HoiVienPdfExporter.exportMemberProfile(data, dlg);
+        });
         dlg.setVisible(true);
+    }
+    
+    
+    private JButton createPdfButton() {
+        JButton btn = new JButton("📄 Xuất hồ sơ PDF");
+        btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        btn.setForeground(Color.WHITE);
+        btn.setBackground(new Color(220, 53, 69));
+        btn.setBorder(new EmptyBorder(8, 14, 8, 14));
+        btn.setFocusPainted(false);
+        btn.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        btn.setOpaque(true);
+        btn.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) { btn.setBackground(new Color(200, 35, 51)); }
+            public void mouseExited(java.awt.event.MouseEvent evt) { btn.setBackground(new Color(220, 53, 69)); }
+        });
+        return btn;
     }
 
     // ========== OPEN FORM (ADD / EDIT) ==========
