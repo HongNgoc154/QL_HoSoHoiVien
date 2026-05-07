@@ -66,7 +66,7 @@ public class HoatDongForm extends JPanel {
 
         // Table card
         model = new DefaultTableModel(new String[]{
-            "ID","Tên hoạt động","Loại","Thời gian bắt đầu","Thời gian kết thúc","Địa điểm","Trạng thái"
+            "ID","Tên hoạt động","Loại","Thời gian bắt đầu","Thời gian kết thúc","Hạn đăng ký","Địa điểm","Trạng thái"
         }, 0) {
             public boolean isCellEditable(int r, int c) { return false; }
         };
@@ -167,7 +167,7 @@ public class HoatDongForm extends JPanel {
                 model.addRow(new Object[]{
                     rs.getInt("id"), rs.getString("tenHoatDong"),
                     rs.getString("loaiHoatDong"), rs.getTimestamp("thoiGianBatDau"),
-                    rs.getTimestamp("thoiGianKetThuc"), rs.getString("diaDiem"),
+                    rs.getTimestamp("thoiGianKetThuc"), rs.getTimestamp("hanDangKy"), rs.getString("diaDiem"),
                     rs.getString("trangThai")
                 });
             }
@@ -197,7 +197,7 @@ public class HoatDongForm extends JPanel {
                 model.addRow(new Object[]{
                     rs.getInt("id"), rs.getString("tenHoatDong"),
                     rs.getString("loaiHoatDong"), rs.getTimestamp("thoiGianBatDau"),
-                    rs.getTimestamp("thoiGianKetThuc"), rs.getString("diaDiem"),
+                    rs.getTimestamp("thoiGianKetThuc"), rs.getTimestamp("hanDangKy"), rs.getString("diaDiem"),
                     rs.getString("trangThai")
                 });
             }
@@ -230,18 +230,19 @@ public class HoatDongForm extends JPanel {
         addRow(info, gc, 0, "Loại hoạt động:", str(model.getValueAt(row, 2)));
         addRow(info, gc, 1, "Thời gian bắt đầu:", str(model.getValueAt(row, 3)));
         addRow(info, gc, 2, "Thời gian kết thúc:", str(model.getValueAt(row, 4)));
-        addRow(info, gc, 3, "Địa điểm:", str(model.getValueAt(row, 5)));
-        addRow(info, gc, 4, "Trạng thái:", str(model.getValueAt(row, 6)));
+        addRow(info, gc, 3, "Hạn đăng ký:", str(model.getValueAt(row, 5)));
+        addRow(info, gc, 4, "Địa điểm:", str(model.getValueAt(row, 6)));
+        addRow(info, gc, 5, "Trạng thái:", str(model.getValueAt(row, 7)));
 
         JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 10));
         btns.setBackground(Color.decode("#F8FAFC"));
         btns.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, UITheme.BORDER_COLOR));
         JButton btnEdit = UITheme.outlineButton("Chỉnh sửa");
         JButton btnSendMail = UITheme.outlineButton("📧 Gửi email");
-        JButton btnDangKy = UITheme.primaryButton("📝 Đăng ký");
+//        JButton btnDangKy = UITheme.primaryButton("📝 Đăng ký");
         JButton btnClose = UITheme.primaryButton("Đóng");
         btns.add(btnSendMail);
-        btns.add(btnDangKy);
+//        btns.add(btnDangKy);
         btns.add(btnEdit);
         btns.add(btnClose);
 
@@ -253,7 +254,7 @@ public class HoatDongForm extends JPanel {
         btnClose.addActionListener(e -> dlg.dispose());
         btnEdit.addActionListener(e -> { dlg.dispose(); openForm(row); });
         btnSendMail.addActionListener(e -> sendActivityEmail((int) model.getValueAt(row, 0)));
-        btnDangKy.addActionListener(e -> openRegisterDialog((int) model.getValueAt(row, 0)));
+//        btnDangKy.addActionListener(e -> openRegisterDialog((int) model.getValueAt(row, 0)));
         dlg.setVisible(true);
     }
 
@@ -316,29 +317,30 @@ public class HoatDongForm extends JPanel {
         gc.insets = new Insets(6, 4, 6, 4);
         gc.fill = GridBagConstraints.HORIZONTAL;
 
-        JTextField txtTen = fld(), txtLoai = fld(), txtDiaDiem = fld();
-        JTextField txtStart = fld(), txtEnd = fld(), txtMoTa = fld(), txtHanDangKy = fld();
-        String[] ttOpts = {"Sắp diễn ra","Đang diễn ra","Đã kết thúc"};
-        JComboBox<String> cbTT = new JComboBox<>(ttOpts);
-        cbTT.setFont(UITheme.FONT_LABEL);
+        JTextField txtTen = fld("Nhập tên hoạt động");
+        JComboBox<String> cbLoai = makeLoaiCombo();
+        JTextField txtDiaDiem = fld("Nhập địa điểm tổ chức");
+        JSpinner spStart = makeDateTimeSpinner();
+        JSpinner spEnd = makeDateTimeSpinner();
+        JSpinner spHanDangKy = makeDateTimeSpinner();
+        JTextField txtMoTa = fld("Nhập mô tả hoạt động");
 
         if (isEdit) {
             txtTen.setText(str(model.getValueAt(row, 1)));
-            txtLoai.setText(str(model.getValueAt(row, 2)));
-            txtStart.setText(str(model.getValueAt(row, 3)));
-            txtEnd.setText(str(model.getValueAt(row, 4)));
-            txtDiaDiem.setText(str(model.getValueAt(row, 5)));
-            cbTT.setSelectedItem(str(model.getValueAt(row, 6)));
+            cbLoai.setSelectedItem(str(model.getValueAt(row, 2)));
+            spStart.setValue(model.getValueAt(row, 3) == null ? new java.util.Date() : new java.util.Date(Timestamp.valueOf(str(model.getValueAt(row, 3))).getTime()));
+            spEnd.setValue(model.getValueAt(row, 4) == null ? new java.util.Date() : new java.util.Date(Timestamp.valueOf(str(model.getValueAt(row, 4))).getTime()));
+            spHanDangKy.setValue(model.getValueAt(row, 5) == null ? new java.util.Date() : new java.util.Date(Timestamp.valueOf(str(model.getValueAt(row, 5))).getTime()));
+            txtDiaDiem.setText(str(model.getValueAt(row, 6)));
         }
 
         addFRow(fields, gc, 0, "Tên hoạt động *", txtTen);
-        addFRow(fields, gc, 1, "Loại hoạt động", txtLoai);
-        addFRow(fields, gc, 2, "Bắt đầu (yyyy-MM-dd HH:mm)", txtStart);
-        addFRow(fields, gc, 3, "Kết thúc (yyyy-MM-dd HH:mm)", txtEnd);
-        addFRow(fields, gc, 4, "Địa điểm", txtDiaDiem);
-        addFRow(fields, gc, 5, "Mô tả", txtMoTa);
-        addFRow(fields, gc, 6, "Hạn đăng ký (yyyy-MM-dd HH:mm)", txtHanDangKy);
-        addFRow(fields, gc, 7, "Trạng thái", cbTT);
+        addFRow(fields, gc, 1, "Loại hoạt động *", cbLoai);
+        addFRow(fields, gc, 2, "Thời gian bắt đầu *", spStart);
+        addFRow(fields, gc, 3, "Thời gian kết thúc *", spEnd);
+        addFRow(fields, gc, 4, "Hạn đăng ký *", spHanDangKy);
+        addFRow(fields, gc, 5, "Địa điểm *", txtDiaDiem);
+        addFRow(fields, gc, 6, "Mô tả *", txtMoTa);
 
         JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 12));
         btns.setBackground(Color.decode("#F8FAFC"));
@@ -353,35 +355,41 @@ public class HoatDongForm extends JPanel {
 
         btnC.addActionListener(e -> dlg.dispose());
         btnS.addActionListener(e -> {
-            if (txtTen.getText().trim().isEmpty()) {
-                JOptionPane.showMessageDialog(dlg, "Tên hoạt động không được để trống!"); return;
-            }
+            if (txtTen.getText().trim().isEmpty() || txtDiaDiem.getText().trim().isEmpty() || txtMoTa.getText().trim().isEmpty()
+                || cbLoai.getEditor().getItem().toString().trim().isEmpty()) { JOptionPane.showMessageDialog(dlg, "Vui lòng nhập đầy đủ thông tin bắt buộc."); return; }
             try (Connection conn = DatabaseHelper.getConnection()) {
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+                Timestamp tsStart = new Timestamp(((java.util.Date) spStart.getValue()).getTime());
+                Timestamp tsEnd = new Timestamp(((java.util.Date) spEnd.getValue()).getTime());
+                Timestamp tsHan = new Timestamp(((java.util.Date) spHanDangKy.getValue()).getTime());
+                if (!tsHan.toLocalDateTime().plusDays(1).isBefore(tsStart.toLocalDateTime()) && !tsHan.toLocalDateTime().plusDays(1).isEqual(tsStart.toLocalDateTime())) {
+                    JOptionPane.showMessageDialog(dlg, "Hạn đăng ký phải trước ngày bắt đầu hoạt động ít nhất 1 ngày.");
+                    return;
+                }
+                String status = calcStatus(tsStart, tsEnd);
                 if (!isEdit) {
                     PreparedStatement ps = conn.prepareStatement(
                          "INSERT INTO HoatDong(tenHoatDong,loaiHoatDong,thoiGianBatDau,thoiGianKetThuc,diaDiem,moTa,hanDangKy,trangThai) VALUES(?,?,?,?,?,?,?,?)");
                     ps.setString(1, txtTen.getText().trim());
-                    ps.setString(2, txtLoai.getText().trim());
-                    setTs(ps, 3, txtStart.getText().trim(), sdf);
-                    setTs(ps, 4, txtEnd.getText().trim(), sdf);
+                    ps.setString(2, cbLoai.getEditor().getItem().toString().trim());
+                    ps.setTimestamp(3, tsStart);
+                    ps.setTimestamp(4, tsEnd);
                     ps.setString(5, txtDiaDiem.getText().trim());
                     ps.setString(6, txtMoTa.getText().trim());
-                    setTs(ps, 7, txtHanDangKy.getText().trim(), sdf);
-                    ps.setString(8, (String) cbTT.getSelectedItem());
+                    ps.setTimestamp(7, tsHan);
+                    ps.setString(8, "Sắp diễn ra");
                     ps.executeUpdate();
                 } else {
                     int id = (int) model.getValueAt(row, 0);
                     PreparedStatement ps = conn.prepareStatement(
                         "UPDATE HoatDong SET tenHoatDong=?,loaiHoatDong=?,thoiGianBatDau=?,thoiGianKetThuc=?,diaDiem=?,moTa=?,hanDangKy=?,trangThai=? WHERE id=?");
                     ps.setString(1, txtTen.getText().trim());
-                    ps.setString(2, txtLoai.getText().trim());
-                    setTs(ps, 3, txtStart.getText().trim(), sdf);
-                    setTs(ps, 4, txtEnd.getText().trim(), sdf);
+                    ps.setString(2, cbLoai.getEditor().getItem().toString().trim());
+                    ps.setTimestamp(3, tsStart);
+                    ps.setTimestamp(4, tsEnd);
                     ps.setString(5, txtDiaDiem.getText().trim());
                     ps.setString(6, txtMoTa.getText().trim());
-                    setTs(ps, 7, txtHanDangKy.getText().trim(), sdf);
-                    ps.setString(8, (String) cbTT.getSelectedItem());
+                    ps.setTimestamp(7, tsHan);
+                    ps.setString(8, status);
                     ps.setInt(9, id);
                     ps.executeUpdate();
                 }
@@ -393,8 +401,9 @@ public class HoatDongForm extends JPanel {
         dlg.setVisible(true);
     }
 
-    private JTextField fld() {
+    private JTextField fld(String placeholder) {
         JTextField f = new JTextField();
+        f.setToolTipText(placeholder);
         f.setFont(UITheme.FONT_LABEL);
         f.setPreferredSize(new Dimension(260, 32));
         f.setBorder(BorderFactory.createCompoundBorder(
@@ -410,9 +419,22 @@ public class HoatDongForm extends JPanel {
         p.add(l, gc); gc.gridx=1; gc.weightx=1; p.add(field, gc);
     }
 
-    private void setTs(PreparedStatement ps, int i, String val, SimpleDateFormat sdf) throws Exception {
-        if (val.isEmpty()) ps.setNull(i, Types.TIMESTAMP);
-        else ps.setTimestamp(i, new Timestamp(sdf.parse(val).getTime()));
+    private JSpinner makeDateTimeSpinner() {
+        JSpinner sp = new JSpinner(new SpinnerDateModel());
+        JSpinner.DateEditor editor = new JSpinner.DateEditor(sp, "yyyy-MM-dd HH:mm");
+        sp.setEditor(editor);
+        return sp;
+    }
+    private JComboBox<String> makeLoaiCombo() {
+        JComboBox<String> cb = new JComboBox<>(new String[]{"Tình nguyện","Hội thảo","Giao lưu"});
+        cb.setEditable(true);
+        return cb;
+    }
+    private String calcStatus(Timestamp start, Timestamp end) {
+        long now = System.currentTimeMillis();
+        if (now < start.getTime()) return "Sắp diễn ra";
+        if (now <= end.getTime()) return "Đang diễn ra";
+        return "Đã kết thúc";
     }
 
     private String str(Object o) { return o == null ? "" : o.toString(); }
@@ -483,7 +505,7 @@ public class HoatDongForm extends JPanel {
         dlg.setSize(430, 260); dlg.setLocationRelativeTo(this);
         JPanel p = new JPanel(new GridBagLayout()); p.setBorder(new EmptyBorder(16,16,16,16));
         GridBagConstraints gc = new GridBagConstraints(); gc.insets = new Insets(5,5,5,5); gc.fill = GridBagConstraints.HORIZONTAL;
-        JTextField txtMa = fld(); JTextField txtTen = fld(); txtTen.setEditable(false);
+        JTextField txtMa = fld("Nhập mã hội viên"); JTextField txtTen = fld("Tên hội viên"); txtTen.setEditable(false);
         addFRow(p,gc,0,"Mã hội viên *",txtMa); addFRow(p,gc,1,"Tên hội viên",txtTen); addFRow(p,gc,2,"ID hoạt động",new JLabel(String.valueOf(idHoatDong)));
         JButton btn = UITheme.primaryButton("Gửi đăng ký");
         gc.gridx=1; gc.gridy=3; p.add(btn,gc); dlg.add(p);

@@ -30,16 +30,19 @@ public class HoiVienForm extends JPanel {
 
     // Column indices in table model
     private static final int COL_ID       = 0;
-    private static final int COL_MA       = 1;
-    private static final int COL_TEN      = 2;
-    private static final int COL_NGAYSINH = 3;
+//    private static final int COL_MA       = 1;
+//    private static final int COL_TEN      = 2;
+//    private static final int COL_NGAYSINH = 3;
+    private static final int COL_HINHANH  = 1;
+    private static final int COL_MA       = 2;
+    private static final int COL_TEN      = 3;
     private static final int COL_GIOITINH = 4;
-    private static final int COL_SDT      = 5;
-    private static final int COL_EMAIL    = 6;
-    private static final int COL_TRANGTHAI= 7;
-    private static final int COL_NGAYTG   = 8;
-    private static final int COL_HINHANH  = 9;
-    private static final int COL_DIACHI   = 10;
+    private static final int COL_NGAYSINH = 5;
+    private static final int COL_SDT      = 6;
+    private static final int COL_EMAIL    = 7;
+    private static final int COL_DIACHI   = 8;
+    private static final int COL_TRANGTHAI= 9;
+    private static final int COL_NGAYTG   = 10;
 
     public HoiVienForm() {
         setLayout(new BorderLayout());
@@ -68,7 +71,7 @@ public class HoiVienForm extends JPanel {
             BorderFactory.createEmptyBorder(6, 10, 6, 10)));
         cbThang = new JComboBox<>(new String[]{"Tháng","T1","T2","T3","T4","T5","T6","T7","T8","T9","T10","T11","T12"});
         cbNam   = new JComboBox<>(new String[]{"Năm","2023","2024","2025","2026"});
-        cbTrangThai = new JComboBox<>(new String[]{"Trạng thái","Hoạt động","Tạm dừng","Đã rời"});
+        cbTrangThai = new JComboBox<>(new String[]{"Trạng thái","Hoạt động","Đã rời"});
         styleCombo(cbThang); styleCombo(cbNam); styleCombo(cbTrangThai);
 
         JButton btnSearch = UITheme.primaryButton("🔍 Tìm kiếm");
@@ -87,7 +90,7 @@ public class HoiVienForm extends JPanel {
 
         // ===== TABLE =====
         model = new DefaultTableModel(new String[]{
-            "ID","Mã HV","Họ tên","Ngày sinh","Giới tính","SĐT","Email","Trạng thái","Ngày tham gia","Hình ảnh","Địa chỉ"
+            "ID","Hình ảnh","Mã HV","Họ tên","Giới tính","Ngày sinh","SĐT","Email","Địa chỉ","Trạng thái","Ngày tham gia"
         }, 0) {
             public boolean isCellEditable(int r, int c) { return false; }
         };
@@ -100,9 +103,9 @@ public class HoiVienForm extends JPanel {
         // Hiển thị cột hình ảnh trong grid
         table.getColumnModel().getColumn(COL_HINHANH).setPreferredWidth(220);
         table.getColumnModel().getColumn(COL_HINHANH).setCellRenderer(new ImagePathRenderer());
-        table.getColumnModel().getColumn(COL_DIACHI).setMinWidth(0);
-        table.getColumnModel().getColumn(COL_DIACHI).setMaxWidth(0);
-        table.getColumnModel().getColumn(COL_DIACHI).setWidth(0);
+//        table.getColumnModel().getColumn(COL_DIACHI).setMinWidth(0);
+//        table.getColumnModel().getColumn(COL_DIACHI).setMaxWidth(0);
+//        table.getColumnModel().getColumn(COL_DIACHI).setWidth(0);
 
         table.addMouseListener(new java.awt.event.MouseAdapter() {
             public void mouseClicked(java.awt.event.MouseEvent e) {
@@ -168,16 +171,16 @@ public class HoiVienForm extends JPanel {
                     rs.getDate("ngaySinh") != null ? rs.getDate("ngaySinh").toString() : "");
                 model.addRow(new Object[]{
                     rs.getInt("id"),
+                    rs.getString("hinhAnh"),
                     rs.getString("maHoiVien"),
                     rs.getString("tenHoiVien"),
-                    ngaySinhDisplay,
                     rs.getString("gioiTinh"),
+                    ngaySinhDisplay,
                     rs.getString("sdt"),
                     rs.getString("email"),
+                    rs.getString("diaChi"),
                     rs.getString("trangThai"),
-                    rs.getDate("ngayThamGia"),
-                    rs.getString("hinhAnh"),
-                    rs.getString("diaChi")
+                    rs.getDate("ngayThamGia")
                 });
             }
         } catch (Exception e) { e.printStackTrace(); }
@@ -208,16 +211,16 @@ public class HoiVienForm extends JPanel {
                     rs.getDate("ngaySinh") != null ? rs.getDate("ngaySinh").toString() : "");
                 model.addRow(new Object[]{
                     rs.getInt("id"),
+                    rs.getString("hinhAnh"),
                     rs.getString("maHoiVien"),
                     rs.getString("tenHoiVien"),
-                    ngaySinhDisplay,
                     rs.getString("gioiTinh"),
+                    ngaySinhDisplay,
                     rs.getString("sdt"),
                     rs.getString("email"),
+                    rs.getString("diaChi"),
                     rs.getString("trangThai"),
-                    rs.getDate("ngayThamGia"),
-                    rs.getString("hinhAnh"),
-                    rs.getString("diaChi")
+                    rs.getDate("ngayThamGia")
                 });
             }
         } catch (Exception e) { e.printStackTrace(); }
@@ -453,7 +456,7 @@ public class HoiVienForm extends JPanel {
         addFormRow(fields, gc, r++, "Số điện thoại *",      txtSdt);
         addFormRow(fields, gc, r++, "Email *",               txtEmail);
         addFormRow(fields, gc, r++, "Địa chỉ *",            txtDiaChi);
-        addFormRow(fields, gc, r++, "Trạng thái",           cbTT);
+//        addFormRow(fields, gc, r++, "Trạng thái",           cbTT);
         addFormRow(fields, gc, r++, "Hình ảnh",             imgPanel);
 
         // Chọn ảnh
@@ -500,7 +503,7 @@ public class HoiVienForm extends JPanel {
             String email   = txtEmail.getText().trim();
             String diaChi  = txtDiaChi.getText().trim();
             String gt      = (String) cbGT.getSelectedItem();
-            String ttVal   = (String) cbTT.getSelectedItem();
+            String ttVal   = "Hoạt động";
 
             StringBuilder errors = new StringBuilder();
             if (!ValidationHelper.isNotEmpty(ten))
@@ -540,12 +543,12 @@ public class HoiVienForm extends JPanel {
                     ps.setString(6, email);
                     ps.setString(7, diaChi);
                     ps.setString(8, selectedImagePath[0]);
-                    ps.setString(9, ttVal);
+                    ps.setString(9, "Hoạt động");
                     ps.executeUpdate();
                 } else {
                     int id = (int) model.getValueAt(row, COL_ID);
                     PreparedStatement ps = conn.prepareStatement(
-                        "UPDATE HoiVien SET tenHoiVien=?,ngaySinh=?,gioiTinh=?,sdt=?,email=?,diaChi=?,hinhAnh=?,trangThai=? WHERE id=?");
+                        "UPDATE HoiVien SET tenHoiVien=?,ngaySinh=?,gioiTinh=?,sdt=?,email=?,diaChi=?,hinhAnh=? WHERE id=?");
                     ps.setString(1, ten);
                     if (ngaySinhSql != null) ps.setDate(2, Date.valueOf(ngaySinhSql));
                     else ps.setNull(2, Types.DATE);
@@ -554,8 +557,7 @@ public class HoiVienForm extends JPanel {
                     ps.setString(5, email);
                     ps.setString(6, diaChi);
                     ps.setString(7, selectedImagePath[0]);
-                    ps.setString(8, ttVal);
-                    ps.setInt(9, id);
+                    ps.setInt(8, id);
                     ps.executeUpdate();
                 }
                 loadTable();

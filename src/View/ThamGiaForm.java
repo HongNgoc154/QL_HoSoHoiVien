@@ -17,7 +17,10 @@ public class ThamGiaForm extends JPanel {
     private StyledTable table;
     private DefaultTableModel model;
     private JTextField txtSearch;
-    private JComboBox<String> cbTrangThai, cbNam;
+    private JComboBox<String> cbTrangThai, cbNam, cbThang;
+    
+    
+    
 
     public ThamGiaForm() {
         setLayout(new BorderLayout());
@@ -46,12 +49,14 @@ public class ThamGiaForm extends JPanel {
             BorderFactory.createEmptyBorder(6, 10, 6, 10)));
         cbTrangThai = makeCombo(new String[]{"Trạng thái","Đăng ký","Đã tham gia","Vắng"});
         cbNam = makeCombo(new String[]{"Năm","2024","2025","2026"});
+        cbThang = makeCombo(new String[]{"Tháng","1","2","3","4","5","6","7","8","9","10","11","12"});
         JButton btnSearch = UITheme.primaryButton("🔍 Tìm");
         JButton btnReset = UITheme.outlineButton("↺ Đặt lại");
         JButton btnExport = UITheme.outlineButton("📥 Xuất Excel");
         filterCard.add(new JLabel("Tìm hội viên:"));
         filterCard.add(txtSearch);
         filterCard.add(cbTrangThai);
+        filterCard.add(cbThang);
         filterCard.add(cbNam);
         filterCard.add(btnSearch);
         filterCard.add(btnReset);
@@ -163,18 +168,21 @@ public class ThamGiaForm extends JPanel {
         String kw = txtSearch.getText().trim();
         String tt = (String) cbTrangThai.getSelectedItem();
         String nam = (String) cbNam.getSelectedItem();
+        String thang = (String) cbThang.getSelectedItem();
 
         StringBuilder sql = new StringBuilder(
             "SELECT tg.id, hv.tenHoiVien, hd.tenHoatDong, tg.ngayDangKy, tg.trangThai, tg.ghiChu " +
             "FROM ThamGia tg JOIN HoiVien hv ON tg.idHoiVien=hv.id " +
-            "JOIN HoatDong hd ON tg.idHoatDong=hd.id WHERE hv.tenHoiVien LIKE ?");
+            "JOIN HoatDong hd ON tg.idHoatDong=hd.id WHERE (hv.tenHoiVien LIKE ? OR hd.tenHoatDong LIKE ?)");
         if (!"Trạng thái".equals(tt)) sql.append(" AND tg.trangThai=N'").append(tt).append("'");
+        if (!"Tháng".equals(thang)) sql.append(" AND MONTH(tg.ngayDangKy)=").append(thang);
         if (!"Năm".equals(nam)) sql.append(" AND YEAR(tg.ngayDangKy)=").append(nam);
         sql.append(" ORDER BY tg.id DESC");
 
         try (Connection conn = DatabaseHelper.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+            PreparedStatement ps = conn.prepareStatement(sql.toString())) {
             ps.setString(1, "%" + kw + "%");
+            ps.setString(2, "%" + kw + "%");
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
                 model.addRow(new Object[]{
@@ -263,110 +271,100 @@ public class ThamGiaForm extends JPanel {
         boolean isEdit = row != null;
         JDialog dlg = new JDialog((Frame) SwingUtilities.getWindowAncestor(this),
             isEdit ? "Cập nhật trạng thái" : "Đăng ký tham gia", true);
-        dlg.setSize(460, 400);
+        dlg.setSize(520, 420);
         dlg.setLocationRelativeTo(this);
-        dlg.setResizable(false);
+//        dlg.setResizable(false);
 
-        JPanel content = new JPanel(new BorderLayout());
-        content.setBackground(Color.WHITE);
-
-        JPanel fh = new JPanel(new BorderLayout());
-        fh.setBackground(UITheme.PRIMARY);
-        fh.setBorder(new EmptyBorder(14, 20, 14, 20));
-        JLabel hl = new JLabel(isEdit ? "✏  Cập nhật trạng thái" : "➕  Đăng ký tham gia mới");
-        hl.setFont(new Font("Segoe UI", Font.BOLD, 15)); hl.setForeground(Color.WHITE);
-        fh.add(hl);
+//        JPanel content = new JPanel(new BorderLayout());
+//        content.setBackground(Color.WHITE);
+//
+//        JPanel fh = new JPanel(new BorderLayout());
+//        fh.setBackground(UITheme.PRIMARY);
+//        fh.setBorder(new EmptyBorder(14, 20, 14, 20));
+//        JLabel hl = new JLabel(isEdit ? "✏  Cập nhật trạng thái" : "➕  Đăng ký tham gia mới");
+//        hl.setFont(new Font("Segoe UI", Font.BOLD, 15)); hl.setForeground(Color.WHITE);
+//        fh.add(hl);
 
         JPanel fields = new JPanel(new GridBagLayout());
-        fields.setBackground(Color.WHITE);
+//        fields.setBackground(Color.WHITE);
         fields.setBorder(new EmptyBorder(18, 24, 10, 24));
         GridBagConstraints gc = new GridBagConstraints();
-        gc.insets = new Insets(6, 4, 6, 4);
-        gc.fill = GridBagConstraints.HORIZONTAL;
+//        gc.insets = new Insets(6, 4, 6, 4);
+//        gc.fill = GridBagConstraints.HORIZONTAL;
+//
+//        // Load combo data
+//        JComboBox<ComboItem> cbHV = new JComboBox<>();
+//        JComboBox<ComboItem> cbHD = new JComboBox<>();
+//        cbHV.setFont(UITheme.FONT_LABEL);
+//        cbHD.setFont(UITheme.FONT_LABEL);
+//        String[] ttItems = {"Đăng ký", "Đã tham gia", "Vắng"};
+//        JComboBox<String> cbTT = new JComboBox<>(ttItems);
+//        cbTT.setFont(UITheme.FONT_LABEL);
+        gc.insets = new Insets(6, 4, 6, 4); gc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Load combo data
-        JComboBox<ComboItem> cbHV = new JComboBox<>();
-        JComboBox<ComboItem> cbHD = new JComboBox<>();
-        cbHV.setFont(UITheme.FONT_LABEL);
-        cbHD.setFont(UITheme.FONT_LABEL);
-        String[] ttItems = {"Đăng ký", "Đã tham gia", "Vắng"};
-        JComboBox<String> cbTT = new JComboBox<>(ttItems);
-        cbTT.setFont(UITheme.FONT_LABEL);
+        JTextField txtMaHV = new JTextField();
+        JTextField txtTenHV = new JTextField(); txtTenHV.setEditable(false);
+        JComboBox<ComboItem> cbHD = new JComboBox<>(); cbHD.setEditable(true);
+        JComboBox<String> cbTT = new JComboBox<>(new String[]{"Đã đăng ký","Đã tham gia","Vắng"});
         JTextField txtGhiChu = new JTextField();
-        txtGhiChu.setFont(UITheme.FONT_LABEL);
-        txtGhiChu.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(UITheme.BORDER_COLOR),
-            BorderFactory.createEmptyBorder(6, 10, 6, 10)));
+//        txtGhiChu.setFont(UITheme.FONT_LABEL);
+//        txtGhiChu.setBorder(BorderFactory.createCompoundBorder(
+//            BorderFactory.createLineBorder(UITheme.BORDER_COLOR),
+//            BorderFactory.createEmptyBorder(6, 10, 6, 10)));
 
         try (Connection conn = DatabaseHelper.getConnection()) {
-            ResultSet rs = conn.createStatement().executeQuery("SELECT id, tenHoiVien FROM HoiVien");
-            while (rs.next()) cbHV.addItem(new ComboItem(rs.getInt("id"), rs.getString("tenHoiVien")));
-            rs = conn.createStatement().executeQuery("SELECT id, tenHoatDong FROM HoatDong");
+            ResultSet rs = conn.createStatement().executeQuery("SELECT id, tenHoatDong FROM HoatDong ORDER BY tenHoatDong");
             while (rs.next()) cbHD.addItem(new ComboItem(rs.getInt("id"), rs.getString("tenHoatDong")));
-        } catch (Exception e) {}
+         } catch (Exception ignored) {}
+        
+        
+//        gc.gridx=1; gc.weightx=1; fields.add(cbHV, gc);
 
-        gc.gridx=0; gc.gridy=0; gc.weightx=0;
-        JLabel lHV = new JLabel("Hội viên *"); lHV.setFont(UITheme.FONT_BOLD); lHV.setForeground(UITheme.TEXT_SECONDARY);
-        lHV.setPreferredSize(new Dimension(160, 26)); fields.add(lHV, gc);
-        gc.gridx=1; gc.weightx=1; fields.add(cbHV, gc);
-
-        gc.gridx=0; gc.gridy=1; gc.weightx=0;
-        JLabel lHD = new JLabel("Hoạt động *"); lHD.setFont(UITheme.FONT_BOLD); lHD.setForeground(UITheme.TEXT_SECONDARY);
-        lHD.setPreferredSize(new Dimension(160, 26)); fields.add(lHD, gc);
-        gc.gridx=1; gc.weightx=1; fields.add(cbHD, gc);
-
-        gc.gridx=0; gc.gridy=2; gc.weightx=0;
-        JLabel lTT = new JLabel("Trạng thái"); lTT.setFont(UITheme.FONT_BOLD); lTT.setForeground(UITheme.TEXT_SECONDARY);
-        lTT.setPreferredSize(new Dimension(160, 26)); fields.add(lTT, gc);
-        gc.gridx=1; gc.weightx=1; fields.add(cbTT, gc);
-
-        gc.gridx=0; gc.gridy=3; gc.weightx=0;
-        JLabel lGC = new JLabel("Ghi chú"); lGC.setFont(UITheme.FONT_BOLD); lGC.setForeground(UITheme.TEXT_SECONDARY);
-        lGC.setPreferredSize(new Dimension(160, 26)); fields.add(lGC, gc);
-        gc.gridx=1; gc.weightx=1; fields.add(txtGhiChu, gc);
+        addField(fields,gc,0,"Mã hội viên *",txtMaHV);
+        addField(fields,gc,1,"Tên hội viên",txtTenHV);
+        addField(fields,gc,2,"Hoạt động *",cbHD);
+        if (isEdit) addField(fields,gc,3,"Trạng thái",cbTT);
+        addField(fields,gc,isEdit?4:3,"Ghi chú",txtGhiChu);
 
         if (isEdit) {
-            cbHV.setEnabled(false);
-            cbHD.setEnabled(false);
-            cbTT.setSelectedItem(str(model.getValueAt(row, 4)));
+            txtMaHV.setEnabled(false); txtTenHV.setText(str(model.getValueAt(row, 1)));
+            cbHD.setEnabled(false); cbTT.setSelectedItem(str(model.getValueAt(row, 4)));
             txtGhiChu.setText(str(model.getValueAt(row, 5)));
         }
 
-        JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 12));
-        btns.setBackground(Color.decode("#F8FAFC"));
-        btns.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, UITheme.BORDER_COLOR));
-        JButton btnC = UITheme.outlineButton("Hủy"), btnS = UITheme.primaryButton(isEdit ? "Lưu" : "Đăng ký");
-        btns.add(btnC); btns.add(btnS);
+        txtMaHV.addKeyListener(new KeyAdapter() { public void keyReleased(KeyEvent e) {
+            try(Connection c = DatabaseHelper.getConnection(); PreparedStatement ps = c.prepareStatement("SELECT tenHoiVien FROM HoiVien WHERE maHoiVien=?")) {
+                ps.setString(1, txtMaHV.getText().trim()); ResultSet rs = ps.executeQuery(); txtTenHV.setText(rs.next() ? rs.getString(1) : "");
+            } catch (Exception ignored) {}
+        }});
 
-        content.add(fh, BorderLayout.NORTH);
-        content.add(fields, BorderLayout.CENTER);
-        content.add(btns, BorderLayout.SOUTH);
-        dlg.add(content);
-        btnC.addActionListener(e -> dlg.dispose());
-        btnS.addActionListener(e -> {
+        JButton save = UITheme.primaryButton(isEdit ? "Lưu" : "Đăng ký");
+        save.addActionListener(e -> {
             try (Connection conn = DatabaseHelper.getConnection()) {
                 if (!isEdit) {
-                    ComboItem hv = (ComboItem) cbHV.getSelectedItem();
+                    PreparedStatement pHv = conn.prepareStatement("SELECT id, trangThai FROM HoiVien WHERE maHoiVien=?");
+                    pHv.setString(1, txtMaHV.getText().trim()); ResultSet rhv = pHv.executeQuery();
+                    if(!rhv.next()){ JOptionPane.showMessageDialog(dlg, "Không tìm thấy hội viên theo mã."); return; }
+                    if("Đã rời".equalsIgnoreCase(rhv.getString("trangThai"))){ JOptionPane.showMessageDialog(dlg, "Hội viên này đã rời hội và không thể đăng ký hoạt động."); return; }
                     ComboItem hd = (ComboItem) cbHD.getSelectedItem();
-                    if (hv == null || hd == null) { JOptionPane.showMessageDialog(dlg, "Chọn hội viên và hoạt động!"); return; }
-                    PreparedStatement ps = conn.prepareStatement(
-                        "INSERT INTO ThamGia(idHoiVien,idHoatDong,trangThai,ghiChu) VALUES(?,?,?,?)");
-                    ps.setInt(1, hv.id); ps.setInt(2, hd.id);
-                    ps.setString(3, (String) cbTT.getSelectedItem());
-                    ps.setString(4, txtGhiChu.getText().trim());
-                    ps.executeUpdate();
+                    if(hd==null){ JOptionPane.showMessageDialog(dlg, "Vui lòng chọn hoạt động."); return; }
+                    PreparedStatement ps = conn.prepareStatement("INSERT INTO ThamGia(idHoiVien,idHoatDong,trangThai,ghiChu) VALUES(?,?,N'Đã đăng ký',?)");
+                    ps.setInt(1, rhv.getInt("id")); ps.setInt(2, hd.id); ps.setString(3, txtGhiChu.getText().trim()); ps.executeUpdate();
                 } else {
                     int id = (int) model.getValueAt(row, 0);
                     PreparedStatement ps = conn.prepareStatement("UPDATE ThamGia SET trangThai=?,ghiChu=? WHERE id=?");
-                    ps.setString(1, (String) cbTT.getSelectedItem());
-                    ps.setString(2, txtGhiChu.getText().trim());
-                    ps.setInt(3, id);
-                    ps.executeUpdate();
+                    ps.setString(1, (String) cbTT.getSelectedItem()); ps.setString(2, txtGhiChu.getText().trim()); ps.setInt(3, id); ps.executeUpdate();
                 }
                 loadTable(); dlg.dispose();
             } catch (Exception ex) { JOptionPane.showMessageDialog(dlg, "Lỗi: " + ex.getMessage()); }
         });
-        dlg.setVisible(true);
+        JPanel root = new JPanel(new BorderLayout()); root.add(fields, BorderLayout.CENTER);
+        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT)); bottom.add(save); root.add(bottom, BorderLayout.SOUTH);
+        dlg.add(root); dlg.setVisible(true);
+    }
+
+    private void addField(JPanel p, GridBagConstraints gc, int y, String lbl, JComponent comp){
+        gc.gridx=0; gc.gridy=y; p.add(new JLabel(lbl), gc); gc.gridx=1; gc.weightx=1; p.add(comp, gc);
     }
 
     private String str(Object o) { return o == null ? "" : o.toString(); }
