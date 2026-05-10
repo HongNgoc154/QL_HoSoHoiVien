@@ -23,6 +23,16 @@ import org.jfree.data.general.DefaultPieDataset;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.jfree.chart.ui.RectangleInsets;
 import org.jfree.chart.labels.*;
+import org.jfree.chart.renderer.category.BarRenderer;
+import org.jfree.chart.renderer.category.StandardBarPainter;
+import org.jfree.chart.axis.*;
+import org.jfree.chart.title.LegendTitle;
+import org.jfree.chart.ui.HorizontalAlignment;
+import org.jfree.chart.plot.RingPlot;
+import org.jfree.data.category.CategoryDataset;
+import java.awt.geom.RoundRectangle2D;
+import java.awt.geom.Rectangle2D;
+import java.awt.BasicStroke;
 
 public class DashboardPanel extends JPanel {
 
@@ -109,15 +119,29 @@ public class DashboardPanel extends JPanel {
     //  HEADER
     // ══════════════════════════════════════════════════════════════════════════
     private JPanel buildHeader() {
-        JPanel p = new JPanel(new BorderLayout(16, 0));
-        p.setOpaque(false);
-        p.setBorder(new EmptyBorder(0, 0, 20, 0));
+        // Card-style header with gradient top accent
+        JPanel card = new JPanel(new BorderLayout(0, 0)) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(CARD);
+                g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 16, 16);
+                GradientPaint gp = new GradientPaint(0, 0, BLUE, getWidth(), 0, new Color(0x7B9FFF));
+                g2.setPaint(gp);
+                g2.fillRoundRect(0, 0, getWidth(), 5, 4, 4);
+                g2.dispose();
+            }
+        };
+        card.setOpaque(false);
+        card.setBorder(new CompoundBorder(
+            new LineBorder(BORDER_C, 1, true),
+            new EmptyBorder(16, 22, 14, 22)));
 
-        // Title
+        // Left: title + date
         JPanel left = new JPanel();
         left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
         left.setOpaque(false);
-        JLabel title = new JLabel("Dashboard");
+        JLabel title = new JLabel("Tổng quan Dashboard");
         title.setFont(FONT_TITLE);
         title.setForeground(TXT_H);
         JLabel sub = new JLabel(LocalDate.now().format(
@@ -125,47 +149,61 @@ public class DashboardPanel extends JPanel {
         sub.setFont(FONT_LABEL);
         sub.setForeground(TXT_S);
         left.add(title);
-        left.add(Box.createVerticalStrut(2));
+        left.add(Box.createVerticalStrut(4));
         left.add(sub);
 
-        // Filter + buttons
-        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        // Right: 2-row filter area
+        JPanel right = new JPanel();
+        right.setLayout(new BoxLayout(right, BoxLayout.Y_AXIS));
         right.setOpaque(false);
 
+        // Row 1: period + date pickers
+        JPanel filterRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        filterRow.setOpaque(false);
         cbPeriod = new JComboBox<>(new String[]{"Tuần này", "Tháng này", "Năm nay", "Tùy chọn"});
         styleCombo(cbPeriod);
-
         LocalDate now = LocalDate.now();
         spFrom = dateSpinner(now.minusDays(6));
         spTo   = dateSpinner(now);
         spFrom.setEnabled(false);
         spTo.setEnabled(false);
+        filterRow.add(lbl("Kỳ:", FONT_SMALL, TXT_S));
+        filterRow.add(cbPeriod);
+        filterRow.add(lbl("Từ", FONT_SMALL, TXT_S));
+        filterRow.add(spFrom);
+        filterRow.add(lbl("→", FONT_SMALL, TXT_S));
+        filterRow.add(spTo);
 
+        // Row 2: action buttons
+        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        btnRow.setOpaque(false);
         JButton btnApply  = actionBtn("▶ Áp dụng", BLUE);
         JButton btnReload = actionBtn("↻ Tải lại", GREEN);
-        JButton btnExport = actionBtn("📥 Xuất", PURPLE);
+        JButton btnExport = actionBtn("📥 Xuất",   PURPLE);
+        btnApply.setPreferredSize(new Dimension(100, 32));
+        btnReload.setPreferredSize(new Dimension(100, 32));
+        btnExport.setPreferredSize(new Dimension(90,  32));
+        btnRow.add(btnApply);
+        btnRow.add(btnReload);
+        btnRow.add(btnExport);
 
-        right.add(lbl("Kỳ:", FONT_LABEL, TXT_S));
-        right.add(cbPeriod);
-        right.add(lbl("Từ", FONT_SMALL, TXT_S));
-        right.add(spFrom);
-        right.add(lbl("→", FONT_SMALL, TXT_S));
-        right.add(spTo);
-        right.add(btnApply);
-        right.add(btnReload);
-        right.add(btnExport);
+        right.add(filterRow);
+        right.add(Box.createVerticalStrut(6));
+        right.add(btnRow);
 
         cbPeriod.addActionListener(e -> onPeriodChange());
         btnApply.addActionListener(e -> refresh());
-        btnReload.addActionListener(e -> {
-            animateReload(btnReload);
-            refresh();
-        });
+        btnReload.addActionListener(e -> { animateReload(btnReload); refresh(); });
         btnExport.addActionListener(e -> showExportDialog());
 
-        p.add(left,  BorderLayout.WEST);
-        p.add(right, BorderLayout.EAST);
-        return p;
+        card.add(left,  BorderLayout.WEST);
+        card.add(right, BorderLayout.EAST);
+
+        JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.setOpaque(false);
+        wrapper.setBorder(new EmptyBorder(0, 0, 16, 0));
+        wrapper.add(card, BorderLayout.CENTER);
+        return wrapper;
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -179,9 +217,10 @@ public class DashboardPanel extends JPanel {
         // Stat cards row
         pnlStats = new JPanel(new GridLayout(1, 4, 16, 0));
         pnlStats.setOpaque(false);
-        pnlStats.setMaximumSize(new Dimension(Integer.MAX_VALUE, 115));
+        pnlStats.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
+        pnlStats.setMinimumSize(new Dimension(0, 110));
         body.add(pnlStats);
-        body.add(Box.createVerticalStrut(20));
+        body.add(Box.createVerticalStrut(18));
 
         // Toggle row
         body.add(buildToggleRow());
@@ -218,52 +257,76 @@ public class DashboardPanel extends JPanel {
 
     private JPanel statCard(String label, int value, String trend, boolean positive,
                              Color accent, Color bg) {
-        JPanel p = new JPanel(new BorderLayout(0, 6)) {
+        JPanel p = new JPanel(new BorderLayout(0, 8)) {
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                // White background
                 g2.setColor(CARD);
-                g2.fillRoundRect(0,0,getWidth(),getHeight(),16,16);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 16, 16);
+                // Left accent stripe
                 g2.setColor(accent);
-                g2.fillRoundRect(0,0,getWidth(),5,4,4);
+                g2.fillRoundRect(0, 0, 5, getHeight(), 4, 4);
+                // Subtle icon circle background
+                g2.setColor(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 22));
+                g2.fillOval(getWidth() - 56, 14, 42, 42);
                 g2.dispose();
             }
         };
         p.setOpaque(false);
         p.setBorder(new CompoundBorder(
             new LineBorder(BORDER_C, 1, true),
-            new EmptyBorder(18, 20, 16, 20)));
+            new EmptyBorder(16, 22, 14, 20)));
 
         p.addMouseListener(new MouseAdapter() {
             public void mouseEntered(MouseEvent e) {
                 p.setBorder(new CompoundBorder(new LineBorder(accent, 2, true),
-                    new EmptyBorder(17,19,15,19))); p.repaint();
+                    new EmptyBorder(15, 21, 13, 19)));
+                p.repaint();
             }
             public void mouseExited(MouseEvent e) {
                 p.setBorder(new CompoundBorder(new LineBorder(BORDER_C, 1, true),
-                    new EmptyBorder(18,20,16,20))); p.repaint();
+                    new EmptyBorder(16, 22, 14, 20)));
+                p.repaint();
             }
         });
 
-        JLabel lblLabel = new JLabel(label);
-        lblLabel.setFont(FONT_LABEL);
-        lblLabel.setForeground(TXT_S);
+        // Extract emoji icon from label (first character or emoji)
+        String icon = label.contains(" ") ? label.split(" ")[0] : "•";
+        String labelText = label.contains(" ") ? label.substring(label.indexOf(" ") + 1) : label;
 
-        JLabel lblVal = new JLabel(String.valueOf(value));
+        JLabel lblIcon = new JLabel(icon);
+        lblIcon.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 20));
+        lblIcon.setHorizontalAlignment(SwingConstants.CENTER);
+
+        JLabel lblLabel = new JLabel(labelText.toUpperCase());
+        lblLabel.setFont(new Font("Segoe UI", Font.BOLD, 10));
+        lblLabel.setForeground(TXT_S);
+        lblLabel.setOpaque(true);
+        lblLabel.setBackground(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 20));
+        lblLabel.setBorder(new EmptyBorder(2, 6, 2, 6));
+
+        JLabel lblVal = new JLabel(String.format("%,d", value));
         lblVal.setFont(FONT_STAT);
         lblVal.setForeground(TXT_H);
 
-        JLabel lblTrend = new JLabel(trend + " so với kỳ trước");
+        String trendSymbol = positive ? "▲" : "▼";
+        JLabel lblTrend = new JLabel(trendSymbol + " " + trend + " so với kỳ trước");
         lblTrend.setFont(FONT_SMALL);
         lblTrend.setForeground(positive ? GREEN : RED);
 
-        JPanel bottom = new JPanel(new BorderLayout());
+        JPanel topRow = new JPanel(new BorderLayout());
+        topRow.setOpaque(false);
+        topRow.add(lblLabel, BorderLayout.WEST);
+        topRow.add(lblIcon,  BorderLayout.EAST);
+
+        JPanel bottom = new JPanel(new BorderLayout(0, 2));
         bottom.setOpaque(false);
-        bottom.add(lblVal, BorderLayout.WEST);
+        bottom.add(lblVal,   BorderLayout.NORTH);
         bottom.add(lblTrend, BorderLayout.SOUTH);
 
-        p.add(lblLabel, BorderLayout.NORTH);
-        p.add(bottom, BorderLayout.CENTER);
+        p.add(topRow,  BorderLayout.NORTH);
+        p.add(bottom,  BorderLayout.CENTER);
         return p;
     }
 
@@ -332,69 +395,138 @@ public class DashboardPanel extends JPanel {
     }
 
     private JPanel chartCard(String title) {
+        // Accent color map per chart
+        Color accent = title.contains("Cơ cấu") ? BLUE : ORANGE;
         JPanel outer = new JPanel(new BorderLayout(0, 10)) {
+            boolean hov = false;
+            {
+                addMouseListener(new MouseAdapter() {
+                    public void mouseEntered(MouseEvent e) { hov = true; repaint(); }
+                    public void mouseExited (MouseEvent e) { hov = false; repaint(); }
+                });
+            }
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                // Card bg
                 g2.setColor(CARD);
-                g2.fillRoundRect(0,0,getWidth()-1,getHeight()-1,16,16);
+                g2.fillRoundRect(0, 0, getWidth()-1, getHeight()-1, 16, 16);
+                // Top accent strip
+                g2.setColor(accent);
+                g2.fillRoundRect(0, 0, getWidth(), 4, 4, 4);
+                // Hover glow
+                if (hov) {
+                    g2.setColor(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 10));
+                    g2.fillRoundRect(0, 0, getWidth()-1, getHeight()-1, 16, 16);
+                }
                 g2.dispose();
             }
         };
         outer.setOpaque(false);
         outer.setBorder(new CompoundBorder(
             new LineBorder(BORDER_C, 1, true),
-            new EmptyBorder(18, 20, 18, 20)));
+            new EmptyBorder(16, 20, 16, 20)));
+
+        // Header row: title + subtle pill label
+        JPanel header = new JPanel(new BorderLayout());
+        header.setOpaque(false);
+        header.setBorder(new EmptyBorder(0, 0, 8, 0));
+
         JLabel lbl = new JLabel(title);
         lbl.setFont(FONT_HEADING);
         lbl.setForeground(TXT_H);
-        outer.add(lbl, BorderLayout.NORTH);
-        outer.setPreferredSize(new Dimension(0, 300));
+
+        JLabel badge = new JLabel(title.contains("Cơ cấu") ? "Hội viên" : "Hoạt động");
+        badge.setFont(new Font("Segoe UI", Font.BOLD, 10));
+        badge.setForeground(accent);
+        badge.setOpaque(true);
+        badge.setBackground(new Color(accent.getRed(), accent.getGreen(), accent.getBlue(), 22));
+        badge.setBorder(new EmptyBorder(3, 8, 3, 8));
+
+        header.add(lbl,   BorderLayout.WEST);
+        header.add(badge, BorderLayout.EAST);
+        outer.add(header, BorderLayout.NORTH);
+        outer.setPreferredSize(new Dimension(0, 310));
         return outer;
     }
 
     private void loadCharts() {
-        // --- Donut: cơ cấu hội viên ---
+        // ── Soft palette for charts ──────────────────────────────────────
+        Color c1 = Color.decode("#4361EE"); // blue  – Hoạt động
+        Color c2 = Color.decode("#10B981"); // green – Mới
+        Color c3 = Color.decode("#F87171"); // red   – Đã rời
+        Color c4 = Color.decode("#FBBF24"); // amber – Tạm dừng
+
+        // ══════════════════════════════════════════════════════════════════
+        //  RING CHART – cơ cấu hội viên
+        // ══════════════════════════════════════════════════════════════════
         DefaultPieDataset pieDs = new DefaultPieDataset();
-        int hvHD   = count("SELECT COUNT(*) FROM HoiVien WHERE trangThai=N'Hoạt động'");
-        int hvMoi  = count("SELECT COUNT(*) FROM HoiVien WHERE ngayThamGia >= ?", fromDate());
-        int hvRoi  = count("SELECT COUNT(*) FROM HoiVien WHERE trangThai LIKE N'%Rời%'");
-        int hvTam  = count("SELECT COUNT(*) FROM HoiVien WHERE trangThai=N'Tạm dừng'");
-        pieDs.setValue("Hoạt động (" + hvHD  + ")", hvHD);
-        pieDs.setValue("Mới ("        + hvMoi + ")", hvMoi);
-        pieDs.setValue("Đã rời ("     + hvRoi + ")", hvRoi);
-        if (hvTam > 0) pieDs.setValue("Tạm dừng (" + hvTam + ")", hvTam);
+        int hvHD  = count("SELECT COUNT(*) FROM HoiVien WHERE trangThai=N'Hoạt động'");
+        int hvMoi = count("SELECT COUNT(*) FROM HoiVien WHERE ngayThamGia >= ?", fromDate());
+        int hvRoi = count("SELECT COUNT(*) FROM HoiVien WHERE trangThai LIKE N'%Rời%'");
+        int hvTam = count("SELECT COUNT(*) FROM HoiVien WHERE trangThai=N'Tạm dừng'");
+        if (hvHD  > 0) pieDs.setValue("Hoạt động (" + hvHD  + ")", hvHD);
+        if (hvMoi > 0) pieDs.setValue("Mới ("        + hvMoi + ")", hvMoi);
+        if (hvRoi > 0) pieDs.setValue("Đã rời ("     + hvRoi + ")", hvRoi);
+        if (hvTam > 0) pieDs.setValue("Tạm dừng ("   + hvTam + ")", hvTam);
 
         JFreeChart pie = ChartFactory.createRingChart("", pieDs, true, true, false);
         pie.setBackgroundPaint(CARD);
-        if (pie.getLegend() != null) pie.getLegend().setBackgroundPaint(CARD);
-        PiePlot pp = (PiePlot) pie.getPlot();
-        pp.setBackgroundPaint(CARD);
-        pp.setOutlineVisible(false);
-        pp.setShadowPaint(null);
-        pp.setInsets(new RectangleInsets(4,4,4,4));
-        pp.setInteriorGap(0.06);
-        // Colors
-        for (Comparable key : (List<Comparable>) pieDs.getKeys()) {
-            String k = key.toString();
-            if (k.startsWith("Hoạt động")) pp.setSectionPaint(key, BLUE);
-            else if (k.startsWith("Mới"))   pp.setSectionPaint(key, GREEN);
-            else if (k.startsWith("Đã rời"))pp.setSectionPaint(key, RED);
-            else                             pp.setSectionPaint(key, ORANGE);
+        pie.setBorderVisible(false);
+        pie.setPadding(new RectangleInsets(8, 8, 8, 8));
+
+        // Legend styling
+        if (pie.getLegend() != null) {
+            pie.getLegend().setBackgroundPaint(CARD);
+            pie.getLegend().setFrame(org.jfree.chart.block.BlockBorder.NONE);
+            pie.getLegend().setItemFont(new Font("Segoe UI", Font.PLAIN, 11));
+            pie.getLegend().setItemPaint(TXT_S);
+            pie.getLegend().setPosition(org.jfree.chart.ui.RectangleEdge.BOTTOM);
         }
 
-        ChartPanel cpPie = new ChartPanel(pie);
+        RingPlot rp = (RingPlot) pie.getPlot();
+        rp.setBackgroundPaint(CARD);
+        rp.setOutlineVisible(false);
+        rp.setShadowPaint(null);
+        rp.setInsets(new RectangleInsets(6, 6, 6, 6));
+        rp.setInteriorGap(0.12);
+        rp.setSectionDepth(0.38);           // thinner ring = more elegant
+        rp.setSeparatorsVisible(false);
+        rp.setLabelGenerator(null);          // no clutter labels on slices
+        rp.setSectionOutlinesVisible(false);
+
+        // Soft colors with explode effect on first slice
+        for (Comparable key : (List<Comparable>) pieDs.getKeys()) {
+            String k = key.toString();
+            if (k.startsWith("Hoạt động")) { rp.setSectionPaint(key, c1); rp.setExplodePercent(key, 0.04); }
+            else if (k.startsWith("Mới"))   rp.setSectionPaint(key, c2);
+            else if (k.startsWith("Đã rời"))rp.setSectionPaint(key, c3);
+            else                             rp.setSectionPaint(key, c4);
+        }
+
+        // Custom ChartPanel with soft drop shadow
+        ChartPanel cpPie = new ChartPanel(pie) {
+            @Override public void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                super.paintComponent(g2);
+                g2.dispose();
+            }
+        };
         cpPie.setOpaque(false);
         cpPie.setBorder(null);
+        cpPie.setBackground(CARD);
         clearAndAdd(donutHolder, cpPie);
 
-        // --- Bar: hoạt động theo loại (multi-series) ---
+        // ══════════════════════════════════════════════════════════════════
+        //  BAR CHART – hoạt động theo loại
+        // ══════════════════════════════════════════════════════════════════
         DefaultCategoryDataset barDs = new DefaultCategoryDataset();
         String sqlBar = "SELECT hd.loaiHoatDong, COUNT(DISTINCT hd.id) soHD, COUNT(tg.idHoiVien) soTG "
                       + "FROM HoatDong hd LEFT JOIN ThamGia tg ON hd.id=tg.idHoatDong "
                       + "GROUP BY hd.loaiHoatDong";
-        try (Connection c = DatabaseHelper.getConnection();
-             ResultSet rs = c.createStatement().executeQuery(sqlBar)) {
+        try (Connection conn = DatabaseHelper.getConnection();
+             ResultSet rs = conn.createStatement().executeQuery(sqlBar)) {
             while (rs.next()) {
                 String loai = rs.getString("loaiHoatDong");
                 if (loai == null || loai.isEmpty()) loai = "Khác";
@@ -403,22 +535,82 @@ public class DashboardPanel extends JPanel {
             }
         } catch (Exception ignored) {}
 
-        JFreeChart bar = ChartFactory.createBarChart("", "Loại", "Số lượng", barDs,
+        JFreeChart bar = ChartFactory.createBarChart(
+            "", "Loại", "Số lượng", barDs,
             PlotOrientation.VERTICAL, true, true, false);
         bar.setBackgroundPaint(CARD);
+        bar.setBorderVisible(false);
+        bar.setPadding(new RectangleInsets(8, 4, 4, 4));
+
+        if (bar.getLegend() != null) {
+            bar.getLegend().setBackgroundPaint(CARD);
+            bar.getLegend().setFrame(org.jfree.chart.block.BlockBorder.NONE);
+            bar.getLegend().setItemFont(new Font("Segoe UI", Font.PLAIN, 11));
+            bar.getLegend().setItemPaint(TXT_S);
+            bar.getLegend().setPosition(org.jfree.chart.ui.RectangleEdge.TOP);
+        }
+
         CategoryPlot cp2 = bar.getCategoryPlot();
         cp2.setBackgroundPaint(CARD);
-        cp2.setRangeGridlinePaint(BORDER_C);
+        cp2.setRangeGridlinePaint(new Color(232, 236, 241));
+        cp2.setRangeGridlineStroke(new BasicStroke(1.0f));
+        cp2.setDomainGridlinesVisible(false);
         cp2.setOutlineVisible(false);
-        BarRenderer br = (BarRenderer) cp2.getRenderer();
-        br.setSeriesPaint(0, BLUE);
-        br.setSeriesPaint(1, GREEN);
-        br.setShadowVisible(false);
-        br.setMaximumBarWidth(0.15);
-        br.setBarPainter(new StandardBarPainter());
+        cp2.setInsets(new RectangleInsets(4, 4, 4, 4));
 
-        ChartPanel cpBar = new ChartPanel(bar);
+        // Axis styling
+        CategoryAxis domainAxis = cp2.getDomainAxis();
+        domainAxis.setTickLabelFont(new Font("Segoe UI", Font.PLAIN, 11));
+        domainAxis.setTickLabelPaint(TXT_S);
+        domainAxis.setAxisLinePaint(BORDER_C);
+        domainAxis.setTickMarksVisible(false);
+        domainAxis.setCategoryMargin(0.25);
+
+        ValueAxis rangeAxis = cp2.getRangeAxis();
+        rangeAxis.setTickLabelFont(new Font("Segoe UI", Font.PLAIN, 11));
+        rangeAxis.setTickLabelPaint(TXT_S);
+        rangeAxis.setAxisLinePaint(BORDER_C);
+        rangeAxis.setTickMarksVisible(false);
+
+        // Rounded bar renderer with gradient fills
+        BarRenderer br = new BarRenderer() {
+            @Override
+            public Paint getItemPaint(int row, int col) {
+                if (row == 0) {
+                    return new GradientPaint(0, 0, new Color(67,97,238), 0, 100, new Color(114,137,255));
+                } else {
+                    return new GradientPaint(0, 0, new Color(16,185,129), 0, 100, new Color(52,211,153));
+                }
+            }
+            @Override
+            public void drawItem(Graphics2D g2, CategoryItemRendererState state,
+                                 Rectangle2D dataArea, CategoryPlot plot,
+                                 CategoryAxis domainAxis2, ValueAxis rangeAxis2,
+                                 CategoryDataset dataset, int row, int column, int pass) {
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                super.drawItem(g2, state, dataArea, plot, domainAxis2, rangeAxis2, dataset, row, column, pass);
+            }
+        };
+        br.setShadowVisible(false);
+        br.setMaximumBarWidth(0.12);
+        br.setItemMargin(0.08);
+        br.setBarPainter(new StandardBarPainter());
+        br.setSeriesPositiveItemLabelPosition(0,
+            new org.jfree.chart.labels.ItemLabelPosition(
+                org.jfree.chart.labels.ItemLabelAnchor.OUTSIDE12,
+                org.jfree.chart.ui.TextAnchor.BOTTOM_CENTER));
+        cp2.setRenderer(br);
+
+        ChartPanel cpBar = new ChartPanel(bar) {
+            @Override public void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                super.paintComponent(g2);
+                g2.dispose();
+            }
+        };
         cpBar.setOpaque(false);
+        cpBar.setBackground(CARD);
         clearAndAdd(barHolder, cpBar);
     }
 
@@ -1199,12 +1391,16 @@ public class DashboardPanel extends JPanel {
     //  SECTION CARD helper
     // ══════════════════════════════════════════════════════════════════════════
     private JPanel sectionCard(String title) {
+        Color accent = title.contains("Top") ? YELLOW : BLUE;
         JPanel p = new JPanel() {
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(CARD);
-                g2.fillRoundRect(0,0,getWidth()-1,getHeight()-1,16,16);
+                g2.fillRoundRect(0, 0, getWidth()-1, getHeight()-1, 16, 16);
+                // left accent stripe
+                g2.setColor(accent);
+                g2.fillRoundRect(0, 0, 4, getHeight(), 4, 4);
                 g2.dispose();
             }
         };
@@ -1212,14 +1408,29 @@ public class DashboardPanel extends JPanel {
         p.setOpaque(false);
         p.setBorder(new CompoundBorder(
             new LineBorder(BORDER_C, 1, true),
-            new EmptyBorder(20, 20, 16, 20)));
+            new EmptyBorder(18, 22, 16, 20)));
         p.setPreferredSize(new Dimension(0, 340));
+
+        // Header row
+        JPanel headerRow = new JPanel(new BorderLayout());
+        headerRow.setOpaque(false);
+        headerRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 32));
+        headerRow.setAlignmentX(LEFT_ALIGNMENT);
 
         JLabel lbl = new JLabel(title);
         lbl.setFont(FONT_HEADING);
         lbl.setForeground(TXT_H);
-        lbl.setAlignmentX(LEFT_ALIGNMENT);
-        p.add(lbl);
+
+        JLabel badge = new JLabel(title.contains("Top") ? "TOP 5" : "GẦN ĐÂY");
+        badge.setFont(new Font("Segoe UI", Font.BOLD, 9));
+        badge.setForeground(accent.equals(YELLOW) ? Color.decode("#92400E") : BLUE);
+        badge.setOpaque(true);
+        badge.setBackground(accent.equals(YELLOW) ? new Color(254,243,199) : new Color(235,240,255));
+        badge.setBorder(new EmptyBorder(3, 7, 3, 7));
+
+        headerRow.add(lbl,   BorderLayout.WEST);
+        headerRow.add(badge, BorderLayout.EAST);
+        p.add(headerRow);
         p.add(Box.createVerticalStrut(14));
         return p;
     }

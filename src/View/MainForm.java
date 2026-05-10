@@ -72,31 +72,78 @@ public class MainForm extends JFrame {
     // ══════════════════════════════════════════════════════════════════════════
     //  NAVBAR
     // ══════════════════════════════════════════════════════════════════════════
+    // ── Current active page label (updated by switchPanel) ────────────────
+    private JLabel navPageLabel;
+
     private JPanel createNavbar() {
         JPanel nav = new JPanel(new BorderLayout()) {
             @Override protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g;
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
                 g2.setColor(Color.WHITE);
                 g2.fillRect(0, 0, getWidth(), getHeight());
-                g2.setColor(UITheme.BORDER_COLOR);
-                g2.drawLine(0, getHeight()-1, getWidth(), getHeight()-1);
+                // subtle bottom shadow
+                GradientPaint shadow = new GradientPaint(
+                    0, getHeight() - 3, new Color(0,0,0,18),
+                    0, getHeight(),     new Color(0,0,0,0));
+                g2.setPaint(shadow);
+                g2.fillRect(0, getHeight() - 3, getWidth(), 3);
+                g2.setColor(Color.decode("#E8ECF1"));
+                g2.drawLine(0, getHeight() - 1, getWidth(), getHeight() - 1);
+                g2.dispose();
             }
         };
         nav.setPreferredSize(new Dimension(0, 56));
-        nav.setBorder(new EmptyBorder(0, 20, 0, 20));
+        nav.setBorder(new EmptyBorder(0, 16, 0, 16));
 
-        // ── Left: app name (centered vertically) ──────────────────────────
-        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        // ── LEFT: Home icon + page breadcrumb ────────────────────────────
+        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         left.setOpaque(false);
 
-        // Multi-line label để vừa với navbar
-        JLabel appName = new JLabel("<html><center>Quản Lý Hồ Sơ<br>Hội Viên</center></html>");
-        appName.setFont(new Font("Segoe UI", Font.BOLD, 14));
-        appName.setForeground(UITheme.PRIMARY);
-        left.add(appName);
+        // Home icon button
+        JButton btnHome = new JButton() {
+            boolean hov = false;
+            {
+                setOpaque(false); setContentAreaFilled(false);
+                setBorderPainted(false); setFocusPainted(false);
+                setPreferredSize(new Dimension(32, 32));
+                setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                addMouseListener(new MouseAdapter() {
+                    public void mouseEntered(MouseEvent e) { hov = true; repaint(); }
+                    public void mouseExited (MouseEvent e) { hov = false; repaint(); }
+                });
+            }
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                if (hov) {
+                    g2.setColor(new Color(19, 89, 185, 18));
+                    g2.fillRoundRect(0, 0, 32, 32, 8, 8);
+                }
+                g2.setColor(Color.decode("#1359B9"));
+                g2.setFont(new Font("Segoe UI Symbol", Font.PLAIN, 16));
+                FontMetrics fm = g2.getFontMetrics();
+                String ic = "⌂";
+                g2.drawString(ic, (32-fm.stringWidth(ic))/2, (32-fm.getHeight())/2+fm.getAscent());
+                g2.dispose();
+            }
+        };
+        btnHome.addActionListener(e -> {
+            activeBtn = null;
+            switchPanel("dashboard");
+            sidebar.repaint();
+            if (navPageLabel != null) navPageLabel.setText("Trang chủ");
+        });
+
+        navPageLabel = new JLabel("Trang chủ");
+        navPageLabel.setFont(new Font("Segoe UI", Font.PLAIN, 14));
+        navPageLabel.setForeground(Color.decode("#374151"));
+
+        left.add(btnHome);
+        left.add(navPageLabel);
         nav.add(left, BorderLayout.WEST);
 
-        // ── Right: notifications + user ──────────────────────────────────
+        // ── RIGHT: bell + user pill ───────────────────────────────────────
         JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         right.setOpaque(false);
 
@@ -104,42 +151,97 @@ public class MainForm extends JFrame {
         String   username = user != null ? user.getUsername() : "Người dùng";
         String   role     = user != null ? user.getRole()     : "";
 
-        JLabel roleLabel = new JLabel(role);
-        roleLabel.setFont(UITheme.FONT_SMALL);
-        roleLabel.setForeground(UITheme.PRIMARY);
-        roleLabel.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(UITheme.PRIMARY_LIGHT),
-            BorderFactory.createEmptyBorder(2, 8, 2, 8)));
-
-        // Avatar circle
-        JLabel avatar = new JLabel(String.valueOf(username.charAt(0)).toUpperCase()) {
+        // Bell button – pill style with blue dot indicator
+        int unread = getUnreadNotificationCount();
+        btnBell = new JButton() {
+            boolean hov = false;
+            {
+                setOpaque(false); setContentAreaFilled(false);
+                setBorderPainted(false); setFocusPainted(false);
+                setPreferredSize(new Dimension(76, 34));
+                setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                addMouseListener(new MouseAdapter() {
+                    public void mouseEntered(MouseEvent e) { hov = true; repaint(); }
+                    public void mouseExited (MouseEvent e) { hov = false; repaint(); }
+                });
+            }
             @Override protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g;
+                Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(UITheme.PRIMARY);
-                g2.fillOval(0, 0, 34, 34);
-                g2.setColor(Color.WHITE);
-                g2.setFont(new Font("Segoe UI", Font.BOLD, 15));
+                // Pill background
+                g2.setColor(hov ? new Color(235,242,255) : Color.WHITE);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 17, 17);
+                g2.setColor(new Color(209, 218, 235));
+                g2.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 17, 17);
+                // Bell icon
+                g2.setColor(Color.decode("#374151"));
+                g2.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 14));
                 FontMetrics fm = g2.getFontMetrics();
-                String t = getText();
-                g2.drawString(t, (34 - fm.stringWidth(t))/2, (34 - fm.getHeight())/2 + fm.getAscent());
+                g2.drawString("🔔", 8, (getHeight()-fm.getHeight())/2+fm.getAscent());
+                // Blue dot
+                g2.setColor(Color.decode("#1359B9"));
+                g2.fillOval(26, 7, 8, 8);
+                // Count text
+                int cnt = 0;
+                try { cnt = Integer.parseInt(getText().trim()); } catch (Exception ignored) {}
+                String s = String.valueOf(cnt);
+                g2.setColor(Color.decode("#374151"));
+                g2.setFont(new Font("Segoe UI", Font.BOLD, 12));
+                FontMetrics fm2 = g2.getFontMetrics();
+                g2.drawString(s, 40, (getHeight()-fm2.getHeight())/2+fm2.getAscent());
+                g2.dispose();
             }
         };
-        avatar.setPreferredSize(new Dimension(34, 34));
-        avatar.setOpaque(false);
+        btnBell.setText(String.valueOf(unread));
+        btnBell.addActionListener(e -> showNotificationDialog(btnBell));
 
-        // User dropdown
-        JButton userBtn = new JButton(username + "  ▾");
-        userBtn.setFont(UITheme.FONT_BOLD);
-        userBtn.setForeground(UITheme.TEXT_PRIMARY);
-        userBtn.setBackground(Color.WHITE);
-        userBtn.setBorderPainted(false);
-        userBtn.setFocusPainted(false);
-        userBtn.setOpaque(true);
-        userBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        // User pill: avatar circle + name + arrow
+        JButton userPill = new JButton() {
+            boolean hov = false;
+            {
+                setOpaque(false); setContentAreaFilled(false);
+                setBorderPainted(false); setFocusPainted(false);
+                setPreferredSize(new Dimension(130, 34));
+                setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                addMouseListener(new MouseAdapter() {
+                    public void mouseEntered(MouseEvent e) { hov = true; repaint(); }
+                    public void mouseExited (MouseEvent e) { hov = false; repaint(); }
+                });
+            }
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                // Pill border
+                g2.setColor(hov ? new Color(235,242,255) : Color.WHITE);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 17, 17);
+                g2.setColor(new Color(209, 218, 235));
+                g2.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 17, 17);
+                // Avatar circle
+                g2.setColor(Color.decode("#1359B9"));
+                g2.fillOval(6, 5, 24, 24);
+                g2.setColor(Color.WHITE);
+                g2.setFont(new Font("Segoe UI", Font.BOLD, 12));
+                FontMetrics fm = g2.getFontMetrics();
+                String initial = username.isEmpty() ? "U" : String.valueOf(username.charAt(0)).toUpperCase();
+                g2.drawString(initial, 6+(24-fm.stringWidth(initial))/2, 5+(24-fm.getHeight())/2+fm.getAscent());
+                // Username
+                g2.setColor(Color.decode("#1F2937"));
+                g2.setFont(new Font("Segoe UI", Font.BOLD, 12));
+                FontMetrics fm2 = g2.getFontMetrics();
+                String disp = username.length() > 8 ? username.substring(0,7)+"…" : username;
+                g2.drawString(disp, 36, (getHeight()-fm2.getHeight())/2+fm2.getAscent());
+                // Chevron
+                g2.setColor(Color.decode("#9CA3AF"));
+                g2.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+                g2.drawString("▾", getWidth()-16, (getHeight()-g2.getFontMetrics().getHeight())/2+g2.getFontMetrics().getAscent());
+                g2.dispose();
+            }
+        };
 
         JPopupMenu popup = new JPopupMenu();
-        popup.setBorder(BorderFactory.createLineBorder(UITheme.BORDER_COLOR));
+        popup.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(Color.decode("#E5E7EB"), 1),
+            BorderFactory.createEmptyBorder(4, 0, 4, 0)));
         JMenuItem itemInfo    = new JMenuItem("👤  " + username + "  (" + role + ")");
         itemInfo.setFont(UITheme.FONT_BOLD); itemInfo.setEnabled(false);
         JMenuItem itemProfile = new JMenuItem("⚙   Thông tin tài khoản");
@@ -152,16 +254,10 @@ public class MainForm extends JFrame {
         popup.add(itemInfo); popup.add(new JSeparator());
         popup.add(itemProfile); popup.add(new JSeparator());
         popup.add(itemLogout);
-        userBtn.addActionListener(e -> popup.show(userBtn, 0, userBtn.getHeight()));
-
-        btnBell = UITheme.outlineButton("🔔 " + getUnreadNotificationCount());
-        btnBell.addActionListener(e -> showNotificationDialog(btnBell));
+        userPill.addActionListener(e -> popup.show(userPill, 0, userPill.getHeight()));
 
         right.add(btnBell);
-        right.add(roleLabel);
-        right.add(Box.createHorizontalStrut(6));
-        right.add(avatar);
-        right.add(userBtn);
+        right.add(userPill);
         nav.add(right, BorderLayout.EAST);
         return nav;
     }
@@ -170,219 +266,171 @@ public class MainForm extends JFrame {
     //  SIDEBAR
     // ══════════════════════════════════════════════════════════════════════════
     private JPanel createSidebar() {
-
-    JPanel sb = new JPanel() {
-
-        @Override
-        protected void paintComponent(Graphics g) {
-
-            Graphics2D g2 = (Graphics2D) g;
-
-            g2.setRenderingHint(
-                RenderingHints.KEY_ANTIALIASING,
-                RenderingHints.VALUE_ANTIALIAS_ON
-            );
-
-            // Gradient background
-            GradientPaint gp = new GradientPaint(
-                0, 0,
-                SB_BG,
-                0, getHeight(),
-                Color.decode("#0F2940")
-            );
-
-            g2.setPaint(gp);
-            g2.fillRect(0, 0, getWidth(), getHeight());
-        }
-    };
-
-    sb.setPreferredSize(new Dimension(SIDEBAR_W, 0));
-    sb.setLayout(new BoxLayout(sb, BoxLayout.Y_AXIS));
-    sb.setBorder(new EmptyBorder(0, 0, 0, 0));
-
-    // =========================================================
-    // BRANDING
-    // =========================================================
-    JPanel brandPanel = new JPanel() {
-
-        @Override
-        protected void paintComponent(Graphics g) {
-
-            Graphics2D g2 = (Graphics2D) g;
-
-            g2.setColor(new Color(255,255,255,18));
-            g2.fillRect(0, 0, getWidth(), getHeight());
-        }
-    };
-
-    brandPanel.setOpaque(false);
-    brandPanel.setLayout(new BoxLayout(brandPanel, BoxLayout.Y_AXIS));
-
-    brandPanel.setBorder(new EmptyBorder(22, 0, 20, 0));
-
-    brandPanel.setMaximumSize(new Dimension(SIDEBAR_W, 110));
-    brandPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-    // ---------- LOGO ----------
-    JLabel logo = new JLabel("◆");
-    logo.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-    logo.setFont(new Font("Segoe UI", Font.BOLD, 24));
-    logo.setForeground(Color.WHITE);
-
-    // ---------- TITLE ----------
-    JLabel title1 = new JLabel("QUẢN LÝ HỒ SƠ");
-    title1.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-    title1.setFont(new Font("Segoe UI", Font.BOLD, 13));
-    title1.setForeground(Color.WHITE);
-
-    JLabel title2 = new JLabel("HỘI VIÊN");
-    title2.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-    title2.setFont(new Font("Segoe UI", Font.PLAIN, 12));
-    title2.setForeground(new Color(220,220,220));
-
-    brandPanel.add(logo);
-    brandPanel.add(Box.createVerticalStrut(8));
-    brandPanel.add(title1);
-    brandPanel.add(Box.createVerticalStrut(2));
-    brandPanel.add(title2);
-
-    sb.add(brandPanel);
-
-    // =========================================================
-    // DIVIDER
-    // =========================================================
-    JPanel divider = new JPanel() {
-
-        @Override
-        protected void paintComponent(Graphics g) {
-
-            Graphics2D g2 = (Graphics2D) g;
-
-            g2.setColor(new Color(255,255,255,30));
-
-            g2.drawLine(18, 0, getWidth()-18, 0);
-        }
-    };
-
-    divider.setOpaque(false);
-
-    divider.setMaximumSize(new Dimension(SIDEBAR_W, 1));
-    divider.setPreferredSize(new Dimension(SIDEBAR_W, 1));
-
-    sb.add(divider);
-
-    sb.add(Box.createVerticalStrut(10));
-
-    // =========================================================
-    // MENU
-    // =========================================================
-    String[][] commonMenus = {
-
-        {"🏠", "Trang chủ", "dashboard"},
-
-        {"👥", "Quản lý hồ sơ hội viên", "hoivien"},
-
-        {"📅", "Hoạt động", "hoatdong"},
-
-        {"✅", "Tham gia", "thamgia"}
-    };
-
-    for (String[] item : commonMenus) {
-
-        JButton btn = createSidebarBtn(
-            item[0],
-            item[1],
-            item[2]
-        );
-
-        btn.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        sb.add(btn);
-
-        sb.add(Box.createVerticalStrut(4));
-    }
-
-    // =========================================================
-    // ADMIN SECTION
-    // =========================================================
-    if (isAdmin()) {
-
-        sb.add(Box.createVerticalStrut(14));
-
-        JLabel adminLbl = new JLabel("QUẢN TRỊ");
-
-        adminLbl.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        adminLbl.setFont(new Font("Segoe UI", Font.BOLD, 10));
-
-        adminLbl.setForeground(new Color(255,255,255,120));
-
-        sb.add(adminLbl);
-
-        sb.add(Box.createVerticalStrut(8));
-
-        String[][] adminMenus = {
-
-            {"👔", "Nhân viên", "nhanvien"},
-
-            {"📋", "Nhật ký", "nhatky"}
+        JPanel sb = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g;
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                GradientPaint gp = new GradientPaint(0, 0, SB_BG, 0, getHeight(), Color.decode("#0F2940"));
+                g2.setPaint(gp);
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                // subtle right border shadow
+                g2.setColor(new Color(0, 0, 0, 40));
+                g2.fillRect(getWidth() - 1, 0, 1, getHeight());
+            }
         };
+        sb.setPreferredSize(new Dimension(SIDEBAR_W, 0));
+        sb.setMinimumSize(new Dimension(SIDEBAR_W, 0));
+        sb.setMaximumSize(new Dimension(SIDEBAR_W, Integer.MAX_VALUE));
+        sb.setLayout(new BoxLayout(sb, BoxLayout.Y_AXIS));
+        sb.setBorder(new EmptyBorder(0, 0, 0, 0));
 
-        for (String[] item : adminMenus) {
+        // ── BRANDING ──────────────────────────────────────────────────
+        JPanel brandPanel = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g;
+                g2.setColor(new Color(255, 255, 255, 15));
+                g2.fillRect(0, 0, getWidth(), getHeight());
+            }
+        };
+        brandPanel.setOpaque(false);
+        brandPanel.setLayout(new BoxLayout(brandPanel, BoxLayout.Y_AXIS));
+        brandPanel.setBorder(new EmptyBorder(24, 0, 22, 0));
+        brandPanel.setMaximumSize(new Dimension(SIDEBAR_W, 120));
+        brandPanel.setMinimumSize(new Dimension(SIDEBAR_W, 120));
+        brandPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-            JButton btn = createSidebarBtn(
-                item[0],
-                item[1],
-                item[2]
-            );
+        // Logo icon circle
+        JPanel logoCircle = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g;
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(255, 255, 255, 30));
+                g2.fillOval(0, 0, 44, 44);
+                g2.setColor(Color.WHITE);
+                g2.setFont(new Font("Segoe UI", Font.BOLD, 20));
+                FontMetrics fm = g2.getFontMetrics();
+                String t = "◆";
+                g2.drawString(t, (44 - fm.stringWidth(t)) / 2, (44 - fm.getHeight()) / 2 + fm.getAscent());
+            }
+        };
+        logoCircle.setOpaque(false);
+        logoCircle.setPreferredSize(new Dimension(44, 44));
+        logoCircle.setMaximumSize(new Dimension(44, 44));
+        logoCircle.setMinimumSize(new Dimension(44, 44));
 
+        JPanel logoWrapper = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        logoWrapper.setOpaque(false);
+        logoWrapper.setMaximumSize(new Dimension(SIDEBAR_W, 44));
+        logoWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
+        logoWrapper.add(logoCircle);
+
+        JLabel title1 = new JLabel("QUẢN LÝ HỒ SƠ", SwingConstants.CENTER);
+        title1.setFont(new Font("Segoe UI", Font.BOLD, 13));
+        title1.setForeground(Color.WHITE);
+        title1.setAlignmentX(Component.LEFT_ALIGNMENT);
+        title1.setMaximumSize(new Dimension(SIDEBAR_W, 20));
+        title1.setHorizontalAlignment(SwingConstants.CENTER);
+
+        JLabel title2 = new JLabel("HỘI VIÊN", SwingConstants.CENTER);
+        title2.setFont(new Font("Segoe UI", Font.PLAIN, 11));
+        title2.setForeground(new Color(160, 210, 255));
+        title2.setAlignmentX(Component.LEFT_ALIGNMENT);
+        title2.setMaximumSize(new Dimension(SIDEBAR_W, 18));
+        title2.setHorizontalAlignment(SwingConstants.CENTER);
+
+        brandPanel.add(logoWrapper);
+        brandPanel.add(Box.createVerticalStrut(10));
+        brandPanel.add(title1);
+        brandPanel.add(Box.createVerticalStrut(3));
+        brandPanel.add(title2);
+        sb.add(brandPanel);
+
+        // ── DIVIDER ───────────────────────────────────────────────────
+        JPanel divider = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
+                g.setColor(new Color(255, 255, 255, 28));
+                g.drawLine(16, 0, getWidth() - 16, 0);
+            }
+        };
+        divider.setOpaque(false);
+        divider.setMaximumSize(new Dimension(SIDEBAR_W, 1));
+        divider.setMinimumSize(new Dimension(SIDEBAR_W, 1));
+        divider.setAlignmentX(Component.LEFT_ALIGNMENT);
+        sb.add(divider);
+        sb.add(Box.createVerticalStrut(10));
+
+        // ── MAIN MENU ─────────────────────────────────────────────────
+        String[][] commonMenus = {
+            {"🏠", "Trang chủ",              "dashboard"},
+            {"👥", "Quản lý hồ sơ hội viên", "hoivien"},
+            {"📅", "Hoạt động",              "hoatdong"},
+            {"✅", "Tham gia",               "thamgia"}
+        };
+        for (String[] item : commonMenus) {
+            JButton btn = createSidebarBtn(item[0], item[1], item[2]);
             btn.setAlignmentX(Component.LEFT_ALIGNMENT);
-
             sb.add(btn);
-
-            sb.add(Box.createVerticalStrut(4));
+            sb.add(Box.createVerticalStrut(2));
         }
+
+        // ── ADMIN SECTION ─────────────────────────────────────────────
+        if (isAdmin()) {
+            sb.add(Box.createVerticalStrut(16));
+
+            JPanel sectionRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+            sectionRow.setOpaque(false);
+            sectionRow.setMaximumSize(new Dimension(SIDEBAR_W, 20));
+            sectionRow.setMinimumSize(new Dimension(SIDEBAR_W, 20));
+            sectionRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+            JLabel adminLbl = new JLabel("QUẢN TRỊ");
+            adminLbl.setFont(new Font("Segoe UI", Font.BOLD, 10));
+            adminLbl.setForeground(new Color(255, 255, 255, 110));
+            sectionRow.add(adminLbl);
+            sb.add(sectionRow);
+
+            sb.add(Box.createVerticalStrut(6));
+
+            String[][] adminMenus = {
+                {"👔", "Nhân viên", "nhanvien"},
+                {"📋", "Nhật ký",   "nhatky"}
+            };
+            for (String[] item : adminMenus) {
+                JButton btn = createSidebarBtn(item[0], item[1], item[2]);
+                btn.setAlignmentX(Component.LEFT_ALIGNMENT);
+                sb.add(btn);
+                sb.add(Box.createVerticalStrut(2));
+            }
+        }
+
+        // ── FOOTER ────────────────────────────────────────────────────
+        sb.add(Box.createVerticalGlue());
+
+        JPanel dividerBottom = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
+                g.setColor(new Color(255, 255, 255, 20));
+                g.drawLine(16, 0, getWidth() - 16, 0);
+            }
+        };
+        dividerBottom.setOpaque(false);
+        dividerBottom.setMaximumSize(new Dimension(SIDEBAR_W, 1));
+        dividerBottom.setMinimumSize(new Dimension(SIDEBAR_W, 1));
+        dividerBottom.setAlignmentX(Component.LEFT_ALIGNMENT);
+        sb.add(dividerBottom);
+
+        JPanel footer = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        footer.setOpaque(false);
+        footer.setMaximumSize(new Dimension(SIDEBAR_W, 36));
+        footer.setMinimumSize(new Dimension(SIDEBAR_W, 36));
+        footer.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JLabel version = new JLabel("v1.0.0");
+        version.setFont(new Font("Segoe UI", Font.PLAIN, 10));
+        version.setForeground(new Color(255, 255, 255, 70));
+        footer.add(version);
+        sb.add(footer);
+
+        return sb;
     }
-
-    // =========================================================
-    // PUSH FOOTER DOWN
-    // =========================================================
-    sb.add(Box.createVerticalGlue());
-
-    // =========================================================
-    // FOOTER
-    // =========================================================
-    JPanel footer = new JPanel(
-        new FlowLayout(FlowLayout.CENTER, 0, 0)
-    );
-
-    footer.setOpaque(false);
-
-    footer.setMaximumSize(
-        new Dimension(SIDEBAR_W, 40)
-    );
-
-    JLabel version = new JLabel("v1.0.0");
-
-    version.setFont(
-        new Font("Segoe UI", Font.PLAIN, 10)
-    );
-
-    version.setForeground(
-        new Color(255,255,255,80)
-    );
-
-    footer.add(version);
-
-    sb.add(footer);
-
-    sb.add(Box.createVerticalStrut(12));
-
-    return sb;
-}
 
     // ── Brand label helper ──────────────────────────────────────────────
     private JLabel makeBrandLabel(String text, int size, boolean bold, Color color) {
@@ -972,8 +1020,10 @@ public class MainForm extends JFrame {
     }
 
     private void refreshNotificationBadge() {
-        if (btnBell != null)
-            btnBell.setText("🔔 " + getUnreadNotificationCount());
+        if (btnBell != null) {
+            btnBell.setText(String.valueOf(getUnreadNotificationCount()));
+            btnBell.repaint();
+        }
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -1074,8 +1124,19 @@ public class MainForm extends JFrame {
     // ══════════════════════════════════════════════════════════════════════════
     //  UTILS
     // ══════════════════════════════════════════════════════════════════════════
+    private static final java.util.Map<String,String> PAGE_NAMES = new java.util.HashMap<>() {{
+        put("dashboard", "Trang chủ");
+        put("hoivien",   "Quản lý hồ sơ hội viên");
+        put("hoatdong",  "Hoạt động");
+        put("thamgia",   "Tham gia");
+        put("nhanvien",  "Nhân viên");
+        put("nhatky",    "Nhật ký");
+    }};
+
     private void switchPanel(String name) {
         cardLayout.show(contentPanel, name);
+        if (navPageLabel != null)
+            navPageLabel.setText(PAGE_NAMES.getOrDefault(name, "Trang chủ"));
     }
 
     private void logout() {
