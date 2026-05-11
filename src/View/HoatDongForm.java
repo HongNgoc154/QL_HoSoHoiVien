@@ -1,20 +1,18 @@
 package View;
 
-import Util.UITheme;
-import Util.StyledTable;
-import Util.ExcelExporter;
+import Util.*;
 import database.DatabaseHelper;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.awt.event.*;
-import java.awt.datatransfer.StringSelection;
 import java.sql.*;
-import java.text.SimpleDateFormat;
-import Util.EmailSender;
 
+/**
+ * HoatDongForm – Quản lý hoạt động hội.
+ * Giao diện đồng nhất: card layout, gradient header, styled table.
+ */
 public class HoatDongForm extends JPanel {
 
     private StyledTable table;
@@ -23,531 +21,275 @@ public class HoatDongForm extends JPanel {
     private JComboBox<String> cbThang, cbNam, cbLoai, cbTrangThai;
 
     public HoatDongForm() {
-        setLayout(new BorderLayout());
+        setLayout(new BorderLayout(0, 0));
         setBackground(UITheme.BG_MAIN);
-        setBorder(new EmptyBorder(24, 28, 24, 28));
+        setBorder(new EmptyBorder(22, 26, 22, 26));
+        buildUI();
+        loadTable();
+    }
 
-        // Header
+    private void buildUI() {
+        // ── HEADER ────────────────────────────────────────────────────────
         JPanel header = new JPanel(new BorderLayout());
         header.setOpaque(false);
-        header.setBorder(new EmptyBorder(0, 0, 16, 0));
-        JLabel title = new JLabel("Quản lý Hoạt động");
-        title.setFont(UITheme.FONT_TITLE);
-        title.setForeground(UITheme.TEXT_PRIMARY);
-        JButton btnAdd = UITheme.primaryButton("+ Thêm mới");
-        header.add(title, BorderLayout.WEST);
+        header.setBorder(new EmptyBorder(0, 0, 14, 0));
+        header.add(UITheme.pageTitlePanel("Quản lý Hoạt động",
+                "Tổ chức và theo dõi hoạt động hội viên"), BorderLayout.WEST);
+        JButton btnAdd = UITheme.primaryButton("  ＋  Thêm mới");
+        btnAdd.setPreferredSize(new Dimension(170, 36));
+        btnAdd.addActionListener(e -> openForm(null));
         header.add(btnAdd, BorderLayout.EAST);
         add(header, BorderLayout.NORTH);
 
-        // Filter card
-        JPanel filterCard = createCard();
-        filterCard.setLayout(new FlowLayout(FlowLayout.LEFT, 10, 8));
-
-        txtSearch = createSearchField("Tìm theo tên hoạt động...");
-        cbThang = makeCombo(new String[]{"Tháng","T1","T2","T3","T4","T5","T6","T7","T8","T9","T10","T11","T12"});
-        cbNam = makeCombo(new String[]{"Năm","2023","2024","2025","2026"});
-        cbLoai = makeCombo(new String[]{"Loại","Hội thảo","Workshop","Cuộc thi","Khác"});
-        cbTrangThai = makeCombo(new String[]{"Trạng thái","Sắp diễn ra","Đang diễn ra","Đã kết thúc"});
-
-        JButton btnSearch = UITheme.primaryButton("🔍 Tìm kiếm");
-        JButton btnReset = UITheme.outlineButton("↺ Đặt lại");
-        JButton btnExport = UITheme.outlineButton("📥 Xuất Excel");
-
-        filterCard.add(new JLabel("Tìm:"));
-        filterCard.add(txtSearch);
-        filterCard.add(cbThang);
-        filterCard.add(cbNam);
-        filterCard.add(cbLoai);
-        filterCard.add(cbTrangThai);
-        filterCard.add(btnSearch);
-        filterCard.add(btnReset);
-        filterCard.add(Box.createHorizontalStrut(10));
-        filterCard.add(btnExport);
-
-        // Table card
-        model = new DefaultTableModel(new String[]{
-            "ID","Tên hoạt động","Loại","Thời gian bắt đầu","Thời gian kết thúc","Hạn đăng ký","Địa điểm","Trạng thái"
-        }, 0) {
-            public boolean isCellEditable(int r, int c) { return false; }
-        };
-        table = new StyledTable(model);
-        table.getColumnModel().getColumn(0).setPreferredWidth(40);
-        table.getColumnModel().getColumn(1).setPreferredWidth(220);
-        table.getColumnModel().getColumn(3).setPreferredWidth(150);
-        table.getColumnModel().getColumn(4).setPreferredWidth(150);
-
-        table.addMouseListener(new MouseAdapter() {
-            public void mouseClicked(MouseEvent e) {
-                int row = table.rowAtPoint(e.getPoint());
-                if (row >= 0) showDetail(row);
-            }
-        });
-
-        JScrollPane scroll = new JScrollPane(table);
-        scroll.setBorder(BorderFactory.createLineBorder(UITheme.BORDER_COLOR));
-        scroll.getViewport().setBackground(Color.WHITE);
-
-        JPanel tableCard = createCard();
-        tableCard.setLayout(new BorderLayout());
-
-        JPanel tblHeader = new JPanel(new BorderLayout());
-        tblHeader.setOpaque(false);
-        tblHeader.setBorder(new EmptyBorder(0, 0, 12, 0));
-        JLabel tblTitle = new JLabel("Danh sách hoạt động");
-        tblTitle.setFont(UITheme.FONT_HEADING);
-        tblTitle.setForeground(UITheme.TEXT_PRIMARY);
-
-        JPanel actBtns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        actBtns.setOpaque(false);
-        JButton btnEdit = UITheme.outlineButton("✏ Sửa");
-        JButton btnDel = UITheme.dangerButton("🗑 Xóa");
-        actBtns.add(btnEdit);
-        actBtns.add(btnDel);
-
-        tblHeader.add(tblTitle, BorderLayout.WEST);
-        tblHeader.add(actBtns, BorderLayout.EAST);
-        tableCard.add(tblHeader, BorderLayout.NORTH);
-        tableCard.add(scroll, BorderLayout.CENTER);
-
-        JPanel center = new JPanel(new BorderLayout(0, 12));
+        // ── CENTER ────────────────────────────────────────────────────────
+        JPanel center = new JPanel(new BorderLayout(0, 10));
         center.setOpaque(false);
-        center.add(filterCard, BorderLayout.NORTH);
-        center.add(tableCard, BorderLayout.CENTER);
+        center.add(buildFilterCard(), BorderLayout.NORTH);
+        center.add(buildTableCard(), BorderLayout.CENTER);
         add(center, BorderLayout.CENTER);
-
-        loadTable();
-        btnSearch.addActionListener(e -> search());
-        btnReset.addActionListener(e -> { txtSearch.setText(""); loadTable(); });
-        btnAdd.addActionListener(e -> openForm(null));
-        btnEdit.addActionListener(e -> editSelected());
-        btnDel.addActionListener(e -> deleteSelected());
-        btnExport.addActionListener(e -> ExcelExporter.exportToCSV(table, "HoatDong", this));
     }
 
-    private JPanel createCard() {
-        JPanel p = new JPanel() {
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g;
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(Color.WHITE);
-                g2.fillRoundRect(0, 0, getWidth()-1, getHeight()-1, 12, 12);
-                g2.setColor(UITheme.BORDER_COLOR);
-                g2.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 12, 12);
+    // ── FILTER CARD ───────────────────────────────────────────────────────
+    private JPanel buildFilterCard() {
+        JPanel card = UITheme.cardPanel(new BorderLayout());
+        card.setBorder(new EmptyBorder(10, 14, 10, 14));
+
+        JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        bar.setOpaque(false);
+
+        txtSearch = new JTextField(16);
+        JPanel searchWrap = UITheme.searchField(txtSearch, "Tìm theo tên hoạt động...");
+
+        cbThang   = makeCombo("Tháng","T1","T2","T3","T4","T5","T6","T7","T8","T9","T10","T11","T12");
+        cbNam     = makeCombo("Năm","2023","2024","2025","2026");
+        cbLoai    = makeCombo("Loại","Hội thảo","Workshop","Cuộc thi","Khác");
+        cbTrangThai = makeCombo("Trạng thái","Sắp diễn ra","Đang diễn ra","Đã kết thúc");
+
+        JButton btnSearch = UITheme.primaryButton("Tìm");
+        JButton btnReset  = UITheme.outlineButton("Đặt lại");
+        JButton btnExport = UITheme.outlineButton("Xuất file");
+        setButtonSize(btnSearch, 90, 34);
+        setButtonSize(btnReset,  96, 34);
+        setButtonSize(btnExport, 90, 34);
+
+        btnSearch.addActionListener(e -> search());
+        btnReset .addActionListener(e -> { txtSearch.setText(""); loadTable(); });
+        btnExport.addActionListener(e -> ExcelExporter.exportToCSV(table, "HoatDong", this));
+
+        bar.add(searchWrap); bar.add(cbThang); bar.add(cbNam);
+        bar.add(cbLoai); bar.add(cbTrangThai);
+        bar.add(btnSearch); bar.add(btnReset); bar.add(btnExport);
+        card.add(bar, BorderLayout.CENTER);
+        return card;
+    }
+
+    // ── TABLE CARD ────────────────────────────────────────────────────────
+    private JPanel buildTableCard() {
+        // Model
+        model = new DefaultTableModel(new String[]{
+            "ID","Tên hoạt động","Loại","Bắt đầu","Kết thúc","Địa điểm","Mô tả","Trạng thái"
+        }, 0) { public boolean isCellEditable(int r, int c) { return false; } };
+
+        table = new StyledTable(model);
+        int[] widths = {50, 200, 90, 120, 120, 110, 160, 110};
+        for (int i = 0; i < widths.length; i++)
+            table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
+
+        // Card
+        JPanel card = UITheme.cardPanel(new BorderLayout());
+
+        // Card header
+        JPanel tblHead = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2=(Graphics2D)g.create();
+                GradientPaint gp=new GradientPaint(0,0,UITheme.PRIMARY_LIGHT,getWidth(),0,Color.WHITE);
+                g2.setPaint(gp); g2.fillRect(0,0,getWidth(),getHeight());
+                g2.setColor(UITheme.BORDER_COLOR); g2.drawLine(0,getHeight()-1,getWidth(),getHeight()-1);
+                g2.dispose(); super.paintComponent(g);
             }
         };
-        p.setOpaque(false);
-        p.setBorder(new EmptyBorder(14, 16, 14, 16));
-        return p;
+        tblHead.setOpaque(false);
+        tblHead.setBorder(new EmptyBorder(9, 14, 9, 14));
+
+        JLabel tblTitle = new JLabel("Danh sách hoạt động");
+        tblTitle.setFont(UITheme.FONT_BOLD);
+        tblTitle.setForeground(UITheme.TEXT_PRIMARY);
+        tblHead.add(tblTitle, BorderLayout.WEST);
+
+        JPanel acts = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
+        acts.setOpaque(false);
+        JButton btnEdit = UITheme.outlineButton("Chỉnh sửa");
+        JButton btnDel  = UITheme.dangerButton("Xóa");
+        btnEdit.addActionListener(e -> editSelected());
+        btnDel .addActionListener(e -> deleteSelected());
+        acts.add(btnEdit); acts.add(btnDel);
+        tblHead.add(acts, BorderLayout.EAST);
+
+        card.add(tblHead, BorderLayout.NORTH);
+        card.add(UITheme.styledScrollPane(table), BorderLayout.CENTER);
+        return card;
     }
 
-    private JTextField createSearchField(String hint) {
-        JTextField f = new JTextField(18);
-        f.setFont(UITheme.FONT_LABEL);
-        f.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(UITheme.BORDER_COLOR),
-            BorderFactory.createEmptyBorder(6, 10, 6, 10)
-        ));
-        return f;
-    }
-
-    private JComboBox<String> makeCombo(String[] items) {
-        JComboBox<String> cb = new JComboBox<>(items);
-        cb.setFont(UITheme.FONT_LABEL);
-        cb.setBackground(Color.WHITE);
-        cb.setPreferredSize(new Dimension(120, 32));
-        return cb;
-    }
-
-    void loadTable() {
+    // ── LOAD / SEARCH ─────────────────────────────────────────────────────
+    public void loadTable() {
         model.setRowCount(0);
-        try (Connection conn = DatabaseHelper.getConnection();
-             ResultSet rs = conn.createStatement().executeQuery(
-                 "SELECT * FROM HoatDong ORDER BY thoiGianBatDau DESC")) {
+        String sql = "SELECT * FROM HoatDong ORDER BY id DESC";
+        try (Connection c = DatabaseHelper.getConnection();
+             ResultSet rs = c.createStatement().executeQuery(sql)) {
             while (rs.next()) {
                 model.addRow(new Object[]{
-                    rs.getInt("id"), rs.getString("tenHoatDong"),
-                    rs.getString("loaiHoatDong"), rs.getTimestamp("thoiGianBatDau"),
-                    rs.getTimestamp("thoiGianKetThuc"), rs.getTimestamp("hanDangKy"), rs.getString("diaDiem"),
-                    rs.getString("trangThai")
+                    rs.getInt("id"),
+                    rs.getString("tenHoatDong"),
+                    rs.getString("loaiHoatDong"),
+                    rs.getTimestamp("thoiGianBatDau"),
+                    rs.getTimestamp("thoiGianKetThuc"),
+                    rs.getString("diaDiem"),
+                    rs.getString("moTa"),
+                    computeStatus(rs.getTimestamp("thoiGianBatDau"), rs.getTimestamp("thoiGianKetThuc"))
                 });
             }
         } catch (Exception e) { e.printStackTrace(); }
+    }
+
+    private String computeStatus(Timestamp start, Timestamp end) {
+        long now = System.currentTimeMillis();
+        if (start == null) return "—";
+        if (now < start.getTime()) return "Sắp diễn ra";
+        if (end == null || now <= end.getTime()) return "Đang diễn ra";
+        return "Đã kết thúc";
     }
 
     private void search() {
         model.setRowCount(0);
         String kw = txtSearch.getText().trim();
-        String thang = (String) cbThang.getSelectedItem();
-        String nam = (String) cbNam.getSelectedItem();
         String loai = (String) cbLoai.getSelectedItem();
-        String tt = (String) cbTrangThai.getSelectedItem();
-
-        StringBuilder sql = new StringBuilder("SELECT * FROM HoatDong WHERE tenHoatDong LIKE ?");
-        if (!"Tháng".equals(thang)) sql.append(" AND MONTH(thoiGianBatDau)=").append(thang.replace("T",""));
-        if (!"Năm".equals(nam)) sql.append(" AND YEAR(thoiGianBatDau)=").append(nam);
+        StringBuilder sql = new StringBuilder(
+            "SELECT * FROM HoatDong WHERE tenHoatDong LIKE ?");
         if (!"Loại".equals(loai)) sql.append(" AND loaiHoatDong=N'").append(loai).append("'");
-        if (!"Trạng thái".equals(tt)) sql.append(" AND trangThai=N'").append(tt).append("'");
-        sql.append(" ORDER BY thoiGianBatDau DESC");
-
-        try (Connection conn = DatabaseHelper.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql.toString())) {
+        sql.append(" ORDER BY id DESC");
+        try (Connection c = DatabaseHelper.getConnection();
+             PreparedStatement ps = c.prepareStatement(sql.toString())) {
             ps.setString(1, "%" + kw + "%");
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
                 model.addRow(new Object[]{
-                    rs.getInt("id"), rs.getString("tenHoatDong"),
-                    rs.getString("loaiHoatDong"), rs.getTimestamp("thoiGianBatDau"),
-                    rs.getTimestamp("thoiGianKetThuc"), rs.getTimestamp("hanDangKy"), rs.getString("diaDiem"),
-                    rs.getString("trangThai")
+                    rs.getInt("id"), rs.getString("tenHoatDong"), rs.getString("loaiHoatDong"),
+                    rs.getTimestamp("thoiGianBatDau"), rs.getTimestamp("thoiGianKetThuc"),
+                    rs.getString("diaDiem"), rs.getString("moTa"),
+                    computeStatus(rs.getTimestamp("thoiGianBatDau"), rs.getTimestamp("thoiGianKetThuc"))
                 });
             }
         } catch (Exception e) { e.printStackTrace(); }
     }
 
-    private void showDetail(int row) {
-        JDialog dlg = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Chi tiết hoạt động", true);
-        dlg.setSize(460, 380);
-        dlg.setLocationRelativeTo(this);
-
-        JPanel content = new JPanel(new BorderLayout());
-        content.setBackground(Color.WHITE);
-
-        JPanel topBar = new JPanel(new BorderLayout());
-        topBar.setBackground(UITheme.PRIMARY);
-        topBar.setBorder(new EmptyBorder(14, 20, 14, 20));
-        JLabel ttl = new JLabel("📅  " + str(model.getValueAt(row, 1)));
-        ttl.setFont(new Font("Segoe UI", Font.BOLD, 15));
-        ttl.setForeground(Color.WHITE);
-        topBar.add(ttl);
-
-        JPanel info = new JPanel(new GridBagLayout());
-        info.setBackground(Color.WHITE);
-        info.setBorder(new EmptyBorder(18, 24, 10, 24));
-        GridBagConstraints gc = new GridBagConstraints();
-        gc.insets = new Insets(5, 4, 5, 4);
-        gc.anchor = GridBagConstraints.WEST;
-
-        addRow(info, gc, 0, "Loại hoạt động:", str(model.getValueAt(row, 2)));
-        addRow(info, gc, 1, "Thời gian bắt đầu:", str(model.getValueAt(row, 3)));
-        addRow(info, gc, 2, "Thời gian kết thúc:", str(model.getValueAt(row, 4)));
-        addRow(info, gc, 3, "Hạn đăng ký:", str(model.getValueAt(row, 5)));
-        addRow(info, gc, 4, "Địa điểm:", str(model.getValueAt(row, 6)));
-        addRow(info, gc, 5, "Trạng thái:", str(model.getValueAt(row, 7)));
-
-        JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 10));
-        btns.setBackground(Color.decode("#F8FAFC"));
-        btns.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, UITheme.BORDER_COLOR));
-        JButton btnEdit = UITheme.outlineButton("Chỉnh sửa");
-        JButton btnSendMail = UITheme.outlineButton("📧 Gửi email");
-//        JButton btnDangKy = UITheme.primaryButton("📝 Đăng ký");
-        JButton btnClose = UITheme.primaryButton("Đóng");
-        btns.add(btnSendMail);
-//        btns.add(btnDangKy);
-        btns.add(btnEdit);
-        btns.add(btnClose);
-
-        content.add(topBar, BorderLayout.NORTH);
-        content.add(info, BorderLayout.CENTER);
-        content.add(btns, BorderLayout.SOUTH);
-        dlg.add(content);
-
-        btnClose.addActionListener(e -> dlg.dispose());
-        btnEdit.addActionListener(e -> { dlg.dispose(); openForm(row); });
-        btnSendMail.addActionListener(e -> sendActivityEmail((int) model.getValueAt(row, 0)));
-//        btnDangKy.addActionListener(e -> openRegisterDialog((int) model.getValueAt(row, 0)));
-        dlg.setVisible(true);
-    }
-
-    private void addRow(JPanel p, GridBagConstraints gc, int y, String lbl, String val) {
-        gc.gridx=0; gc.gridy=y;
-        JLabel l = new JLabel(lbl); l.setFont(UITheme.FONT_BOLD); l.setForeground(UITheme.TEXT_SECONDARY);
-        l.setPreferredSize(new Dimension(160, 26));
-        p.add(l, gc);
-        gc.gridx=1;
-        JLabel v = new JLabel(val); v.setFont(UITheme.FONT_LABEL); v.setForeground(UITheme.TEXT_PRIMARY);
-        p.add(v, gc);
-    }
-
     private void editSelected() {
         int row = table.getSelectedRow();
-        if (row < 0) { JOptionPane.showMessageDialog(this, "Chọn dòng cần sửa!"); return; }
+        if (row < 0) { JOptionPane.showMessageDialog(this, "Vui lòng chọn dòng cần sửa!"); return; }
         openForm(row);
     }
 
     private void deleteSelected() {
         int row = table.getSelectedRow();
-        if (row < 0) { JOptionPane.showMessageDialog(this, "Chọn dòng cần xóa!"); return; }
+        if (row < 0) { JOptionPane.showMessageDialog(this, "Vui lòng chọn dòng cần xóa!"); return; }
         int id = (int) model.getValueAt(row, 0);
-        String name = str(model.getValueAt(row, 1));
-        int c = JOptionPane.showConfirmDialog(this,
-            "Bạn có chắc chắn muốn xóa hoạt động\n\"" + name + "\" không?",
+        int ok = JOptionPane.showConfirmDialog(this,
+            "Bạn có chắc chắn muốn xóa hoạt động này?",
             "Xác nhận xóa", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
-        if (c == JOptionPane.YES_OPTION) {
-            try (Connection conn = DatabaseHelper.getConnection();
-                 PreparedStatement ps = conn.prepareStatement("DELETE FROM HoatDong WHERE id=?")) {
-                ps.setInt(1, id);
-                ps.executeUpdate();
-                loadTable();
+        if (ok == JOptionPane.YES_OPTION) {
+            try (Connection c = DatabaseHelper.getConnection();
+                 PreparedStatement ps = c.prepareStatement("DELETE FROM HoatDong WHERE id=?")) {
+                ps.setInt(1, id); ps.executeUpdate(); loadTable();
             } catch (Exception e) { JOptionPane.showMessageDialog(this, "Lỗi: " + e.getMessage()); }
         }
     }
 
+    // ── OPEN FORM ─────────────────────────────────────────────────────────
     private void openForm(Integer row) {
         boolean isEdit = row != null;
-        JDialog dlg = new JDialog((Frame) SwingUtilities.getWindowAncestor(this),
-            isEdit ? "Sửa hoạt động" : "Thêm hoạt động mới", true);
-        dlg.setSize(500, 480);
-        dlg.setLocationRelativeTo(this);
-        dlg.setResizable(false);
-
-        JPanel content = new JPanel(new BorderLayout());
-        content.setBackground(Color.WHITE);
-
-        JPanel fh = new JPanel(new BorderLayout());
-        fh.setBackground(UITheme.PRIMARY);
-        fh.setBorder(new EmptyBorder(14, 20, 14, 20));
-        JLabel hl = new JLabel(isEdit ? "✏  Sửa hoạt động" : "➕  Thêm hoạt động mới");
-        hl.setFont(new Font("Segoe UI", Font.BOLD, 15)); hl.setForeground(Color.WHITE);
-        fh.add(hl);
+        JDialog dlg = FormPanel.createDialog(this,
+            isEdit ? "Chỉnh sửa hoạt động" : "Thêm hoạt động mới", 560, 440);
+        dlg.setLayout(new BorderLayout());
+        dlg.add(FormPanel.createHeader(isEdit ? "Chỉnh sửa hoạt động" : "Thêm hoạt động mới"),
+                BorderLayout.NORTH);
 
         JPanel fields = new JPanel(new GridBagLayout());
         fields.setBackground(Color.WHITE);
-        fields.setBorder(new EmptyBorder(18, 24, 10, 24));
-        GridBagConstraints gc = new GridBagConstraints();
-        gc.insets = new Insets(6, 4, 6, 4);
-        gc.fill = GridBagConstraints.HORIZONTAL;
+        GridBagConstraints gc = FormPanel.defaultGBC();
 
-        JTextField txtTen = fld("Nhập tên hoạt động");
-        JComboBox<String> cbLoai = makeLoaiCombo();
-        JTextField txtDiaDiem = fld("Nhập địa điểm tổ chức");
-        JSpinner spStart = makeDateTimeSpinner();
-        JSpinner spEnd = makeDateTimeSpinner();
-        JSpinner spHanDangKy = makeDateTimeSpinner();
-        JTextField txtMoTa = fld("Nhập mô tả hoạt động");
+        JTextField txtTen   = FormPanel.styledField(300);
+        JComboBox<String> cbLoaiF = new JComboBox<>(new String[]{"Hội thảo","Workshop","Cuộc thi","Khác"});
+        UITheme.styleCombo(cbLoaiF);
+        JTextField txtBD   = FormPanel.styledField(200);
+        JTextField txtKT   = FormPanel.styledField(200);
+        JTextField txtDia  = FormPanel.styledField(300);
+        JTextArea  txtMoTa = new JTextArea(3, 30);
+        txtMoTa.setFont(UITheme.FONT_LABEL);
+        txtMoTa.setLineWrap(true);
+        txtMoTa.setWrapStyleWord(true);
+        txtMoTa.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(UITheme.BORDER_COLOR, 1, true),
+            BorderFactory.createEmptyBorder(6, 10, 6, 10)));
+        JScrollPane spMoTa = new JScrollPane(txtMoTa);
+        spMoTa.setPreferredSize(new Dimension(300, 70));
+        spMoTa.setBorder(BorderFactory.createEmptyBorder());
 
         if (isEdit) {
-            txtTen.setText(str(model.getValueAt(row, 1)));
-            cbLoai.setSelectedItem(str(model.getValueAt(row, 2)));
-            spStart.setValue(model.getValueAt(row, 3) == null ? new java.util.Date() : new java.util.Date(Timestamp.valueOf(str(model.getValueAt(row, 3))).getTime()));
-            spEnd.setValue(model.getValueAt(row, 4) == null ? new java.util.Date() : new java.util.Date(Timestamp.valueOf(str(model.getValueAt(row, 4))).getTime()));
-            spHanDangKy.setValue(model.getValueAt(row, 5) == null ? new java.util.Date() : new java.util.Date(Timestamp.valueOf(str(model.getValueAt(row, 5))).getTime()));
-            txtDiaDiem.setText(str(model.getValueAt(row, 6)));
+            txtTen .setText(str(model.getValueAt(row, 1)));
+            cbLoaiF.setSelectedItem(str(model.getValueAt(row, 2)));
+            Object bd = model.getValueAt(row, 3);
+            Object kt = model.getValueAt(row, 4);
+            if (bd != null) txtBD.setText(bd.toString());
+            if (kt != null) txtKT.setText(kt.toString());
+            txtDia .setText(str(model.getValueAt(row, 5)));
+            txtMoTa.setText(str(model.getValueAt(row, 6)));
         }
 
-        addFRow(fields, gc, 0, "Tên hoạt động *", txtTen);
-        addFRow(fields, gc, 1, "Loại hoạt động *", cbLoai);
-        addFRow(fields, gc, 2, "Thời gian bắt đầu *", spStart);
-        addFRow(fields, gc, 3, "Thời gian kết thúc *", spEnd);
-        addFRow(fields, gc, 4, "Hạn đăng ký *", spHanDangKy);
-        addFRow(fields, gc, 5, "Địa điểm *", txtDiaDiem);
-        addFRow(fields, gc, 6, "Mô tả *", txtMoTa);
+        FormPanel.addRow(fields, gc, 0, "Tên hoạt động *", txtTen);
+        FormPanel.addRow(fields, gc, 1, "Loại hoạt động *", cbLoaiF);
+        FormPanel.addRow(fields, gc, 2, "Thời gian bắt đầu", txtBD);
+        FormPanel.addRow(fields, gc, 3, "Thời gian kết thúc", txtKT);
+        FormPanel.addRow(fields, gc, 4, "Địa điểm", txtDia);
+        FormPanel.addRow(fields, gc, 5, "Mô tả", spMoTa);
 
-        JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 12));
-        btns.setBackground(Color.decode("#F8FAFC"));
-        btns.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, UITheme.BORDER_COLOR));
-        JButton btnC = UITheme.outlineButton("Hủy"), btnS = UITheme.primaryButton(isEdit ? "Lưu" : "Thêm mới");
-        btns.add(btnC); btns.add(btnS);
+        dlg.add(FormPanel.createBody(fields), BorderLayout.CENTER);
 
-        content.add(fh, BorderLayout.NORTH);
-        content.add(fields, BorderLayout.CENTER);
-        content.add(btns, BorderLayout.SOUTH);
-        dlg.add(content);
-
-        btnC.addActionListener(e -> dlg.dispose());
-        btnS.addActionListener(e -> {
-            if (txtTen.getText().trim().isEmpty() || txtDiaDiem.getText().trim().isEmpty() || txtMoTa.getText().trim().isEmpty()
-                || cbLoai.getEditor().getItem().toString().trim().isEmpty()) { JOptionPane.showMessageDialog(dlg, "Vui lòng nhập đầy đủ thông tin bắt buộc."); return; }
-            try (Connection conn = DatabaseHelper.getConnection()) {
-                Timestamp tsStart = new Timestamp(((java.util.Date) spStart.getValue()).getTime());
-                Timestamp tsEnd = new Timestamp(((java.util.Date) spEnd.getValue()).getTime());
-                Timestamp tsHan = new Timestamp(((java.util.Date) spHanDangKy.getValue()).getTime());
-                if (!tsHan.toLocalDateTime().plusDays(1).isBefore(tsStart.toLocalDateTime()) && !tsHan.toLocalDateTime().plusDays(1).isEqual(tsStart.toLocalDateTime())) {
-                    JOptionPane.showMessageDialog(dlg, "Hạn đăng ký phải trước ngày bắt đầu hoạt động ít nhất 1 ngày.");
-                    return;
-                }
-                String status = calcStatus(tsStart, tsEnd);
-                if (!isEdit) {
-                    PreparedStatement ps = conn.prepareStatement(
-                         "INSERT INTO HoatDong(tenHoatDong,loaiHoatDong,thoiGianBatDau,thoiGianKetThuc,diaDiem,moTa,hanDangKy,trangThai) VALUES(?,?,?,?,?,?,?,?)");
-                    ps.setString(1, txtTen.getText().trim());
-                    ps.setString(2, cbLoai.getEditor().getItem().toString().trim());
-                    ps.setTimestamp(3, tsStart);
-                    ps.setTimestamp(4, tsEnd);
-                    ps.setString(5, txtDiaDiem.getText().trim());
-                    ps.setString(6, txtMoTa.getText().trim());
-                    ps.setTimestamp(7, tsHan);
-                    ps.setString(8, "Sắp diễn ra");
-                    ps.executeUpdate();
+        JButton btnSave   = UITheme.primaryButton("Lưu");
+        JButton btnCancel = UITheme.outlineButton("Hủy");
+        btnCancel.addActionListener(e -> dlg.dispose());
+        btnSave.addActionListener(e -> {
+            String ten = txtTen.getText().trim();
+            if (ten.isEmpty()) { JOptionPane.showMessageDialog(dlg, "Vui lòng nhập tên hoạt động."); return; }
+            try (Connection c = DatabaseHelper.getConnection()) {
+                if (isEdit) {
+                    PreparedStatement ps = c.prepareStatement(
+                        "UPDATE HoatDong SET tenHoatDong=?,loaiHoatDong=?,diaDiem=?,moTa=? WHERE id=?");
+                    ps.setString(1, ten); ps.setString(2, (String)cbLoaiF.getSelectedItem());
+                    ps.setString(3, txtDia.getText().trim()); ps.setString(4, txtMoTa.getText().trim());
+                    ps.setInt(5, (int)model.getValueAt(row, 0)); ps.executeUpdate();
                 } else {
-                    int id = (int) model.getValueAt(row, 0);
-                    PreparedStatement ps = conn.prepareStatement(
-                        "UPDATE HoatDong SET tenHoatDong=?,loaiHoatDong=?,thoiGianBatDau=?,thoiGianKetThuc=?,diaDiem=?,moTa=?,hanDangKy=?,trangThai=? WHERE id=?");
-                    ps.setString(1, txtTen.getText().trim());
-                    ps.setString(2, cbLoai.getEditor().getItem().toString().trim());
-                    ps.setTimestamp(3, tsStart);
-                    ps.setTimestamp(4, tsEnd);
-                    ps.setString(5, txtDiaDiem.getText().trim());
-                    ps.setString(6, txtMoTa.getText().trim());
-                    ps.setTimestamp(7, tsHan);
-                    ps.setString(8, status);
-                    ps.setInt(9, id);
+                    PreparedStatement ps = c.prepareStatement(
+                        "INSERT INTO HoatDong(tenHoatDong,loaiHoatDong,diaDiem,moTa) VALUES(?,?,?,?)");
+                    ps.setString(1, ten); ps.setString(2, (String)cbLoaiF.getSelectedItem());
+                    ps.setString(3, txtDia.getText().trim()); ps.setString(4, txtMoTa.getText().trim());
                     ps.executeUpdate();
                 }
-                loadTable();
-                dlg.dispose();
+                loadTable(); dlg.dispose();
             } catch (Exception ex) { JOptionPane.showMessageDialog(dlg, "Lỗi: " + ex.getMessage()); }
         });
-
+        dlg.add(FormPanel.createFooter(btnCancel, btnSave), BorderLayout.SOUTH);
         dlg.setVisible(true);
     }
 
-    private JTextField fld(String placeholder) {
-        JTextField f = new JTextField();
-        f.setToolTipText(placeholder);
-        f.setFont(UITheme.FONT_LABEL);
-        f.setPreferredSize(new Dimension(260, 32));
-        f.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(UITheme.BORDER_COLOR),
-            BorderFactory.createEmptyBorder(5, 8, 5, 8)));
-        return f;
-    }
-
-    private void addFRow(JPanel p, GridBagConstraints gc, int y, String lbl, JComponent field) {
-        gc.gridx=0; gc.gridy=y; gc.weightx=0;
-        JLabel l = new JLabel(lbl); l.setFont(UITheme.FONT_BOLD); l.setForeground(UITheme.TEXT_SECONDARY);
-        l.setPreferredSize(new Dimension(200, 26));
-        p.add(l, gc); gc.gridx=1; gc.weightx=1; p.add(field, gc);
-    }
-
-    private JSpinner makeDateTimeSpinner() {
-        JSpinner sp = new JSpinner(new SpinnerDateModel());
-        JSpinner.DateEditor editor = new JSpinner.DateEditor(sp, "yyyy-MM-dd HH:mm");
-        sp.setEditor(editor);
-        return sp;
-    }
-    private JComboBox<String> makeLoaiCombo() {
-        JComboBox<String> cb = new JComboBox<>(new String[]{"Tình nguyện","Hội thảo","Giao lưu"});
-        cb.setEditable(true);
+    // ── HELPERS ───────────────────────────────────────────────────────────
+    private JComboBox<String> makeCombo(String... items) {
+        JComboBox<String> cb = new JComboBox<>(items);
+        UITheme.styleCombo(cb);
         return cb;
     }
-    private String calcStatus(Timestamp start, Timestamp end) {
-        long now = System.currentTimeMillis();
-        if (now < start.getTime()) return "Sắp diễn ra";
-        if (now <= end.getTime()) return "Đang diễn ra";
-        return "Đã kết thúc";
+
+    private void setButtonSize(JButton btn, int w, int h) {
+        btn.setPreferredSize(new Dimension(w, h));
     }
 
     private String str(Object o) { return o == null ? "" : o.toString(); }
-
-    private void sendActivityEmail(int idHoatDong) {
-    String sql = "SELECT * FROM HoatDong WHERE id=? AND trangThai=N'Hoạt động'";
-
-    try (Connection conn = DatabaseHelper.getConnection();
-         PreparedStatement ps = conn.prepareStatement(sql)) {
-
-        ps.setInt(1, idHoatDong);
-        ResultSet rs = ps.executeQuery();
-
-        if (!rs.next()) return;
-
-        // Nội dung email
-        String subject = "Thông tin hoạt động: " + rs.getString("tenHoatDong");
-        String body = "Tên hoạt động: " + rs.getString("tenHoatDong")
-                + "\nBắt đầu: " + rs.getString("thoiGianBatDau")
-                + "\nKết thúc: " + rs.getString("thoiGianKetThuc")
-                + "\nĐịa điểm: " + rs.getString("diaDiem")
-                + "\nMô tả: " + rs.getString("moTa");
-
-        // 🔥 Lấy danh sách email trước (QUAN TRỌNG)
-        java.util.List<String> emails = new java.util.ArrayList<>();
-
-        PreparedStatement psHv = conn.prepareStatement(
-                "SELECT email FROM HoiVien WHERE email IS NOT NULL AND email<>'' AND ISNULL(trangThai,N'')<>N'Đã rời'"
-        );
-        ResultSet hvRs = psHv.executeQuery();
-
-        while (hvRs.next()) {
-            emails.add(hvRs.getString("email"));
-        }
-
-        // 🔥 Sau đó mới chạy thread
-        new Thread(() -> {
-            try {
-                for (String email : emails) {
-                    EmailSender.send(email, subject, body);
-
-                    // tránh spam Gmail (rất nên có)
-                    Thread.sleep(500);
-                }
-
-                SwingUtilities.invokeLater(() -> {
-                    JOptionPane.showMessageDialog(this,
-                            "Đã gửi email cho " + emails.size() + " hội viên!");
-                });
-
-            } catch (Exception ex) {
-                ex.printStackTrace();
-
-                SwingUtilities.invokeLater(() -> {
-                    JOptionPane.showMessageDialog(this,
-                            "Lỗi khi gửi email!");
-                });
-            }
-        }).start();
-
-    } catch (Exception e) {
-        JOptionPane.showMessageDialog(this, "Lỗi gửi email: " + e.getMessage());
-    }
 }
-
-    private void openRegisterDialog(int idHoatDong) {
-        JDialog dlg = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Đăng ký tham gia", true);
-        dlg.setSize(430, 260); dlg.setLocationRelativeTo(this);
-        JPanel p = new JPanel(new GridBagLayout()); p.setBorder(new EmptyBorder(16,16,16,16));
-        GridBagConstraints gc = new GridBagConstraints(); gc.insets = new Insets(5,5,5,5); gc.fill = GridBagConstraints.HORIZONTAL;
-        JTextField txtMa = fld("Nhập mã hội viên"); JTextField txtTen = fld("Tên hội viên"); txtTen.setEditable(false);
-        addFRow(p,gc,0,"Mã hội viên *",txtMa); addFRow(p,gc,1,"Tên hội viên",txtTen); addFRow(p,gc,2,"ID hoạt động",new JLabel(String.valueOf(idHoatDong)));
-        JButton btn = UITheme.primaryButton("Gửi đăng ký");
-        gc.gridx=1; gc.gridy=3; p.add(btn,gc); dlg.add(p);
-        txtMa.addKeyListener(new KeyAdapter(){public void keyReleased(KeyEvent e){fillMemberName(txtMa.getText().trim(),txtTen);}});
-        btn.addActionListener(e-> submitTempRegister(idHoatDong, txtMa.getText().trim(), txtTen.getText().trim(), dlg));
-        dlg.setVisible(true);
-    }
-
-    private void fillMemberName(String ma, JTextField txtTen) {
-        try (Connection conn = DatabaseHelper.getConnection();
-             PreparedStatement ps = conn.prepareStatement("SELECT tenHoiVien FROM HoiVien WHERE maHoiVien=?")) {
-            ps.setString(1, ma); ResultSet rs = ps.executeQuery(); txtTen.setText(rs.next()?rs.getString(1):"");
-        } catch (Exception ignored) {}
-    }
-
-    private void submitTempRegister(int idHoatDong, String maHoiVien, String tenHoiVien, JDialog dlg) {
-        if (maHoiVien.isEmpty()) { JOptionPane.showMessageDialog(dlg, "Mã hội viên bắt buộc."); return; }
-        try (Connection conn = DatabaseHelper.getConnection()) {
-            PreparedStatement pHd = conn.prepareStatement("SELECT tenHoatDong, hanDangKy FROM HoatDong WHERE id=?");
-            pHd.setInt(1,idHoatDong); ResultSet hd = pHd.executeQuery(); if(!hd.next()) return;
-            Timestamp han = hd.getTimestamp("hanDangKy");
-            if (han != null && System.currentTimeMillis() > han.getTime()) { JOptionPane.showMessageDialog(dlg, "Hoạt động đã hết hạn đăng ký"); return; }
-            PreparedStatement pHv = conn.prepareStatement("SELECT id, tenHoiVien, trangThai FROM HoiVien WHERE maHoiVien=?");
-            pHv.setString(1, maHoiVien); ResultSet hv = pHv.executeQuery(); if(!hv.next()){JOptionPane.showMessageDialog(dlg,"Hội viên không tồn tại"); return;}
-            String trangThaiHv = hv.getString("trangThai");
-            if (trangThaiHv != null && trangThaiHv.trim().equalsIgnoreCase("Đã rời")) {
-                JOptionPane.showMessageDialog(dlg,"Hội viên đã rời hội và không thể tham gia hoạt động.");
-                return;
-            }
-            int idHv = hv.getInt("id"); String ten = hv.getString("tenHoiVien");
-            PreparedStatement chk = conn.prepareStatement("SELECT 1 FROM DangKyTam WHERE idHoiVien=? AND idHoatDong=?");
-            chk.setInt(1,idHv); chk.setInt(2,idHoatDong); if(chk.executeQuery().next()){JOptionPane.showMessageDialog(dlg,"Đăng ký trùng."); return;}
-            PreparedStatement ins = conn.prepareStatement("INSERT INTO DangKyTam(idHoiVien,idHoatDong,maHoiVien,trangThai,thoiGianDangKy) VALUES(?,?,?,N'Chờ duyệt',GETDATE())", Statement.RETURN_GENERATED_KEYS);
-            ins.setInt(1,idHv); ins.setInt(2,idHoatDong); ins.setString(3,maHoiVien); ins.executeUpdate();
-            ResultSet keys = ins.getGeneratedKeys(); int idDkt=0; if(keys.next()) idDkt=keys.getInt(1);
-            PreparedStatement tb = conn.prepareStatement("INSERT INTO ThongBao(noiDung,idDangKyTam,daDoc,thoiGian) VALUES(?,?,0,GETDATE())");
-            tb.setString(1, "Hội viên " + ten + " vừa đăng ký hoạt động " + hd.getString("tenHoatDong"));
-            tb.setInt(2,idDkt); tb.executeUpdate();
-            JOptionPane.showMessageDialog(dlg, "Đăng ký thành công, chờ admin duyệt.");
-            dlg.dispose();
-        } catch (Exception ex) { JOptionPane.showMessageDialog(dlg, "Lỗi đăng ký: " + ex.getMessage()); }
-    }
-}
-
-    

@@ -1,5 +1,7 @@
 package View;
 
+import Util.UITheme;
+import Util.StyledTable;
 import database.DatabaseHelper;
 
 import javax.swing.*;
@@ -8,138 +10,192 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.sql.*;
 
-public class NhatKyForm extends JPanel {  // ✅ Đổi từ JFrame → JPanel
+/**
+ * NhatKyForm – Nhật ký hệ thống.
+ * Giao diện đồng nhất với các form khác: màu chủ đạo #1359B9 / #9FE4FB.
+ */
+public class NhatKyForm extends JPanel {
 
-    private JTable table;
+    private StyledTable table;
     private DefaultTableModel model;
     private JSpinner fromDate;
     private JSpinner toDate;
 
     public NhatKyForm() {
-        setLayout(new BorderLayout());
-        setBackground(Color.decode("#F0F4F8"));
-        setBorder(new EmptyBorder(24, 28, 24, 28));
-
-        // Header
-        JPanel header = new JPanel(new BorderLayout());
-        header.setOpaque(false);
-        header.setBorder(new EmptyBorder(0, 0, 16, 0));
-        JLabel title = new JLabel("Nhật ký hệ thống");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 22));
-        title.setForeground(Color.decode("#1E293B"));
-        header.add(title, BorderLayout.WEST);
-        JPanel filter = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        filter.setOpaque(false);
-        fromDate = new JSpinner(new SpinnerDateModel());
-        toDate = new JSpinner(new SpinnerDateModel());
-        JSpinner.DateEditor fromEditor = new JSpinner.DateEditor(fromDate, "yyyy-MM-dd");
-        JSpinner.DateEditor toEditor = new JSpinner.DateEditor(toDate, "yyyy-MM-dd");
-        fromDate.setEditor(fromEditor);
-        toDate.setEditor(toEditor);
-        JButton btnFilter = new JButton("Lọc");
-        btnFilter.addActionListener(e -> loadData());
-        filter.add(new JLabel("Từ ngày"));
-        filter.add(fromDate);
-        filter.add(new JLabel("Đến ngày"));
-        filter.add(toDate);
-        filter.add(btnFilter);
-        header.add(filter, BorderLayout.EAST);
-        add(header, BorderLayout.NORTH);
-
-        // Table
-        model = new DefaultTableModel();
-        model.setColumnIdentifiers(new String[]{
-                "ID", "Nhân viên", "Hành động", "Đối tượng", "Mô tả", "Thời gian"
-        });
-
-        table = new JTable(model) {
-            public boolean isCellEditable(int r, int c) { return false; }
-        };
-        table.setFont(new Font("Segoe UI", Font.PLAIN, 13));
-        table.setRowHeight(38);
-        table.setShowHorizontalLines(true);
-        table.setShowVerticalLines(false);
-        table.setGridColor(Color.decode("#E2E8F0"));
-        table.setSelectionBackground(Color.decode("#CBDDE9"));
-        table.getTableHeader().setFont(new Font("Segoe UI", Font.BOLD, 13));
-        table.getTableHeader().setBackground(Color.decode("#2872A1"));
-        table.getTableHeader().setForeground(Color.WHITE);
-        table.getTableHeader().setPreferredSize(new Dimension(0, 40));
-
-        JScrollPane scroll = new JScrollPane(table);
-        scroll.setBorder(BorderFactory.createLineBorder(Color.decode("#E2E8F0")));
-        scroll.getViewport().setBackground(Color.WHITE);
-
-        // Card wrapper
-        JPanel card = new JPanel(new BorderLayout()) {
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g;
-                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(Color.WHITE);
-                g2.fillRoundRect(0, 0, getWidth()-1, getHeight()-1, 12, 12);
-                g2.setColor(Color.decode("#E2E8F0"));
-                g2.drawRoundRect(0, 0, getWidth()-1, getHeight()-1, 12, 12);
-            }
-        };
-        card.setOpaque(false);
-        card.setBorder(new EmptyBorder(14, 16, 14, 16));
-
-        JPanel cardHeader = new JPanel(new BorderLayout());
-        cardHeader.setOpaque(false);
-        cardHeader.setBorder(new EmptyBorder(0, 0, 12, 0));
-        JLabel cardTitle = new JLabel("Danh sách nhật ký");
-        cardTitle.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        cardTitle.setForeground(Color.decode("#1E293B"));
-        cardHeader.add(cardTitle, BorderLayout.WEST);
-
-        JButton btnRefresh = new JButton("↻ Làm mới");
-        btnRefresh.setFont(new Font("Segoe UI", Font.BOLD, 13));
-        btnRefresh.setBackground(Color.decode("#2872A1"));
-        btnRefresh.setForeground(Color.WHITE);
-        btnRefresh.setFocusPainted(false);
-        btnRefresh.setBorderPainted(false);
-        btnRefresh.setOpaque(true);
-        btnRefresh.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btnRefresh.setBorder(BorderFactory.createEmptyBorder(8, 18, 8, 18));
-        btnRefresh.addActionListener(e -> loadData());
-        cardHeader.add(btnRefresh, BorderLayout.EAST);
-
-        card.add(cardHeader, BorderLayout.NORTH);
-        card.add(scroll, BorderLayout.CENTER);
-        add(card, BorderLayout.CENTER);
-
+        setLayout(new BorderLayout(0, 0));
+        setBackground(UITheme.BG_MAIN);
+        setBorder(new EmptyBorder(22, 26, 22, 26));
+        buildUI();
         loadData();
     }
 
-    private void loadData() {
+    private void buildUI() {
+        // ── PAGE HEADER ───────────────────────────────────────────────────
+        JPanel header = new JPanel(new BorderLayout());
+        header.setOpaque(false);
+        header.setBorder(new EmptyBorder(0, 0, 14, 0));
+        header.add(UITheme.pageTitlePanel("Nhật ký hệ thống",
+                "Lịch sử thao tác và hoạt động của nhân viên"), BorderLayout.WEST);
+        add(header, BorderLayout.NORTH);
+
+        // ── CENTER ────────────────────────────────────────────────────────
+        JPanel center = new JPanel(new BorderLayout(0, 10));
+        center.setOpaque(false);
+
+        // Filter card
+        JPanel filterCard = UITheme.cardPanel(new BorderLayout());
+        filterCard.setBorder(new EmptyBorder(10, 14, 10, 14));
+        filterCard.add(buildFilterBar(), BorderLayout.CENTER);
+        center.add(filterCard, BorderLayout.NORTH);
+
+        // Table card
+        JPanel tableCard = UITheme.cardPanel(new BorderLayout());
+        tableCard.add(buildTableHeader(), BorderLayout.NORTH);
+        tableCard.add(UITheme.styledScrollPane(buildTable()), BorderLayout.CENTER);
+        center.add(tableCard, BorderLayout.CENTER);
+
+        add(center, BorderLayout.CENTER);
+    }
+
+    // ── FILTER BAR ────────────────────────────────────────────────────────
+    private JPanel buildFilterBar() {
+        JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        bar.setOpaque(false);
+
+        JLabel lblFrom = new JLabel("Từ ngày:");
+        lblFrom.setFont(UITheme.FONT_BOLD);
+        lblFrom.setForeground(UITheme.TEXT_SECONDARY);
+
+        fromDate = makeSpinner();
+        toDate   = makeSpinner();
+
+        JLabel lblTo = new JLabel("Đến ngày:");
+        lblTo.setFont(UITheme.FONT_BOLD);
+        lblTo.setForeground(UITheme.TEXT_SECONDARY);
+
+        JButton btnFilter = UITheme.primaryButton("  🔍  Lọc");
+        JButton btnReset  = UITheme.outlineButton("  ↺  Đặt lại");
+        btnFilter.setPreferredSize(new Dimension(110, 34));
+        btnReset .setPreferredSize(new Dimension(110, 34));
+        btnFilter.addActionListener(e -> loadData());
+        btnReset .addActionListener(e -> {
+            fromDate.setValue(new java.util.Date(0));
+            toDate.setValue(new java.util.Date());
+            loadData();
+        });
+
+        bar.add(lblFrom);
+        bar.add(fromDate);
+        bar.add(lblTo);
+        bar.add(toDate);
+        bar.add(btnFilter);
+        bar.add(btnReset);
+        return bar;
+    }
+
+    private JSpinner makeSpinner() {
+        JSpinner sp = new JSpinner(new SpinnerDateModel());
+        sp.setEditor(new JSpinner.DateEditor(sp, "dd/MM/yyyy"));
+        sp.setFont(UITheme.FONT_LABEL);
+        sp.setPreferredSize(new Dimension(130, 34));
+        ((JSpinner.DefaultEditor) sp.getEditor()).getTextField().setFont(UITheme.FONT_LABEL);
+        return sp;
+    }
+
+    // ── TABLE CARD HEADER ─────────────────────────────────────────────────
+    private JPanel buildTableHeader() {
+        JPanel p = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                GradientPaint gp = new GradientPaint(0, 0, UITheme.PRIMARY_LIGHT,
+                        getWidth(), 0, Color.WHITE);
+                g2.setPaint(gp);
+                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.setColor(UITheme.BORDER_COLOR);
+                g2.drawLine(0, getHeight()-1, getWidth(), getHeight()-1);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        p.setOpaque(false);
+        p.setBorder(new EmptyBorder(9, 14, 9, 14));
+
+        JPanel left = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        left.setOpaque(false);
+        JLabel title = new JLabel("Danh sách nhật ký");
+        title.setFont(UITheme.FONT_BOLD);
+        title.setForeground(UITheme.TEXT_PRIMARY);
+        left.add(title);
+        p.add(left, BorderLayout.WEST);
+
+        JButton btnExport = UITheme.outlineButton("📥  Xuất Excel");
+        btnExport.setPreferredSize(new Dimension(130, 32));
+        p.add(btnExport, BorderLayout.EAST);
+        return p;
+    }
+
+    // ── TABLE ────────────────────────────────────────────────────────────
+    private StyledTable buildTable() {
+        model = new DefaultTableModel(
+            new String[]{"ID", "Nhân viên", "Hành động", "Đối tượng", "Mô tả", "Thời gian"}, 0) {
+            public boolean isCellEditable(int r, int c) { return false; }
+        };
+        table = new StyledTable(model);
+        table.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+
+        // Column widths
+        int[] widths = {50, 130, 90, 100, 260, 130};
+        for (int i = 0; i < widths.length; i++) {
+            table.getColumnModel().getColumn(i).setPreferredWidth(widths[i]);
+        }
+
+        // Hành động column – custom renderer with badge colors
+        table.getColumnModel().getColumn(2).setCellRenderer(
+            new javax.swing.table.DefaultTableCellRenderer() {
+                @Override public Component getTableCellRendererComponent(
+                        JTable t, Object v, boolean sel, boolean foc, int row, int col) {
+                    JLabel lbl = (JLabel) super.getTableCellRendererComponent(t, v, sel, foc, row, col);
+                    String txt = v != null ? v.toString() : "";
+                    String bg = "#f1f5f9", fg = "#475569";
+                    if (txt.contains("THÊM") || txt.contains("Thêm")) { bg="#d1fae5"; fg="#065f46"; }
+                    else if (txt.contains("SỬA") || txt.contains("Sửa") || txt.contains("CẬP NHẬT")) { bg="#fef3c7"; fg="#92400e"; }
+                    else if (txt.contains("XÓA") || txt.contains("Xóa")) { bg="#fee2e2"; fg="#991b1b"; }
+                    else if (txt.contains("TẠO") || txt.contains("Tạo") || txt.contains("ĐĂNG NHẬP")) { bg="#dbeafe"; fg="#1e40af"; }
+                    lbl.setText("<html><span style='padding:3px 10px;border-radius:20px;"
+                            + "font-weight:700;font-size:11px;background:" + bg + ";color:" + fg + "'>"
+                            + txt + "</span></html>");
+                    lbl.setHorizontalAlignment(SwingConstants.LEFT);
+                    lbl.setOpaque(true);
+                    lbl.setBackground(sel ? Color.decode("#D4E6FF")
+                                    : row % 2 == 0 ? Color.WHITE : Color.decode("#F8FBFF"));
+                    lbl.setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 8));
+                    return lbl;
+                }
+            });
+        return table;
+    }
+
+    // ── LOAD DATA ────────────────────────────────────────────────────────
+    public void loadData() {
         model.setRowCount(0);
-
+        String sql = "SELECT nk.id, nv.tenNhanVien, nk.hanhDong, nk.doiTuong, nk.moTa, nk.thoiGian "
+                   + "FROM NhatKyHeThong nk "
+                   + "LEFT JOIN NhanVien nv ON nk.idNhanVien = nv.id "
+                   + "ORDER BY nk.id DESC";
         try (Connection conn = DatabaseHelper.getConnection();
-             PreparedStatement ps = conn.prepareStatement(
-                 "SELECT nk.id, nv.tenNhanVien, nk.hanhDong, nk.doiTuong, nk.moTa, nk.thoiGian " +
-                 "FROM NhatKyHeThong nk LEFT JOIN NhanVien nv ON nk.idNhanVien = nv.id " +
-                 "WHERE CAST(nk.thoiGian AS DATE) BETWEEN ? AND ? " +
-                 "ORDER BY nk.thoiGian DESC");
-             ) {
-            java.util.Date from = (java.util.Date) fromDate.getValue();
-            java.util.Date to = (java.util.Date) toDate.getValue();
-            ps.setDate(1, new java.sql.Date(from.getTime()));
-            ps.setDate(2, new java.sql.Date(to.getTime()));
-            ResultSet rs = ps.executeQuery();
-
+             ResultSet rs = conn.createStatement().executeQuery(sql)) {
             while (rs.next()) {
                 model.addRow(new Object[]{
-                        rs.getInt("id"),
-                        rs.getString("tenNhanVien"),
-                        rs.getString("hanhDong"),
-                        rs.getString("doiTuong"),
-                        rs.getString("moTa"),
-                        rs.getTimestamp("thoiGian")
+                    rs.getInt("id"),
+                    rs.getString("tenNhanVien"),
+                    rs.getString("hanhDong"),
+                    rs.getString("doiTuong"),
+                    rs.getString("moTa"),
+                    rs.getTimestamp("thoiGian")
                 });
             }
-
         } catch (Exception e) {
-            e.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Lỗi tải nhật ký: " + e.getMessage());
         }
     }
 }

@@ -9,210 +9,339 @@ import java.awt.*;
 import java.awt.event.*;
 import java.awt.geom.RoundRectangle2D;
 
+/**
+ * LoginForm – Giao diện đăng nhập hiện đại.
+ * Left panel: gradient #1359B9 → #0a1f5c với hoa văn geometric.
+ * Right panel: form trắng sạch với focus effects.
+ */
 public class LoginForm extends JFrame {
 
-    private JTextField txtUser;
+    private JTextField    txtUser;
     private JPasswordField txtPass;
-    private AuthController controller = new AuthController();
+    private JLabel        lblError;
+    private JButton       btnLogin;
 
     public LoginForm() {
-        setTitle("Đăng nhập hệ thống");
-        setUndecorated(true);
-        setSize(900, 560);
-        setLocationRelativeTo(null);
+        setTitle("Đăng nhập – Hệ thống Quản lý Hội viên");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setShape(new RoundRectangle2D.Double(0, 0, 900, 560, 20, 20));
+        setSize(860, 520);
+        setLocationRelativeTo(null);
+        setResizable(false);
+        setUndecorated(true);
+        setShape(new RoundRectangle2D.Double(0, 0, 860, 520, 20, 20));
 
         JPanel root = new JPanel(new GridLayout(1, 2)) {
-            protected void paintComponent(Graphics g) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Color.WHITE);
+                g2.fillRoundRect(0, 0, getWidth()-1, getHeight()-1, 20, 20);
+                g2.dispose();
+            }
+        };
+        root.setBorder(BorderFactory.createLineBorder(UITheme.BORDER_COLOR, 1));
+        setContentPane(root);
+
+        root.add(buildLeft());
+        root.add(buildRight());
+
+        // Drag to move
+        addDragToMove(root);
+    }
+
+    // ── LEFT PANEL ────────────────────────────────────────────────────────
+    private JPanel buildLeft() {
+        JPanel left = new JPanel(null) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                // Background gradient
+                GradientPaint gp = new GradientPaint(0, 0, Color.decode("#0a1f5c"),
+                        getWidth(), getHeight(), UITheme.PRIMARY);
+                g2.setPaint(gp);
+                g2.fillRect(0, 0, getWidth(), getHeight());
+
+                // Geometric decorations – circles
+                g2.setColor(new Color(159, 228, 251, 18));
+                g2.fillOval(-60, -60, 220, 220);
+                g2.setColor(new Color(159, 228, 251, 12));
+                g2.fillOval(getWidth()-120, getHeight()-120, 240, 240);
+                g2.setColor(new Color(255, 255, 255, 8));
+                g2.fillOval(40, getHeight()-180, 160, 160);
+
+                // Grid dots
+                g2.setColor(new Color(255,255,255,22));
+                for (int x = 20; x < getWidth(); x += 28)
+                    for (int y = 20; y < getHeight(); y += 28)
+                        g2.fillOval(x, y, 2, 2);
+
+                // Accent circle (top-right)
+                g2.setStroke(new BasicStroke(1.5f));
+                g2.setColor(new Color(159, 228, 251, 50));
+                g2.drawOval(getWidth()-90, -50, 180, 180);
+                g2.drawOval(getWidth()-70, -30, 140, 140);
+                g2.dispose();
                 super.paintComponent(g);
             }
         };
-        root.setBackground(Color.WHITE);
+        left.setOpaque(false);
 
-        // ===== LEFT PANEL (branding) =====
-        JPanel left = new JPanel() {
-            protected void paintComponent(Graphics g) {
-                Graphics2D g2 = (Graphics2D) g;
+        // Logo icon
+        JPanel iconCircle = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                GradientPaint gp = new GradientPaint(0, 0, UITheme.PRIMARY_DARK, getWidth(), getHeight(), UITheme.ACCENT);
+                GradientPaint gp = new GradientPaint(0, 0, UITheme.ACCENT,
+                        getWidth(), getHeight(), UITheme.ACCENT_DARK);
                 g2.setPaint(gp);
-                g2.fillRect(0, 0, getWidth(), getHeight());
+                g2.fillOval(0, 0, getWidth(), getHeight());
+                // shadow glow
+                g2.setColor(new Color(159, 228, 251, 60));
+                g2.setStroke(new BasicStroke(6));
+                g2.drawOval(3, 3, getWidth()-6, getHeight()-6);
+                g2.dispose();
+                super.paintComponent(g);
             }
         };
-        left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
-        left.setBorder(new EmptyBorder(60, 40, 60, 40));
+        iconCircle.setOpaque(false);
+        iconCircle.setSize(76, 76);
+        iconCircle.setLocation(175, 110);
+        JLabel iconTxt = new JLabel("🏛");
+        iconTxt.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 34));
+        iconTxt.setHorizontalAlignment(SwingConstants.CENTER);
+        iconTxt.setBounds(0, 0, 76, 76);
+        iconCircle.setLayout(new BorderLayout());
+        iconCircle.add(iconTxt);
 
-        JLabel logo = new JLabel("◆");
-        logo.setFont(new Font("Segoe UI", Font.BOLD, 48));
-        logo.setForeground(new Color(255, 255, 255, 120));
-        logo.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JLabel title1 = makeLabel("HỘI VIÊN", new Font("Segoe UI", Font.BOLD, 30), Color.WHITE, 430, 40);
+        title1.setBounds(0, 200, 430, 44);
+        title1.setHorizontalAlignment(SwingConstants.CENTER);
 
-        JLabel title = new JLabel("QuanLy");
-        title.setFont(new Font("Segoe UI", Font.BOLD, 32));
-        title.setForeground(Color.WHITE);
-        title.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JLabel title2 = makeLabel("MANAGER", new Font("Segoe UI", Font.PLAIN, 18), UITheme.ACCENT, 430, 30);
+        title2.setBounds(0, 242, 430, 30);
+        title2.setHorizontalAlignment(SwingConstants.CENTER);
 
-        JLabel title2 = new JLabel("HoiVien");
-        title2.setFont(new Font("Segoe UI", Font.BOLD, 32));
-        title2.setForeground(new Color(203, 221, 233));
-        title2.setAlignmentX(Component.CENTER_ALIGNMENT);
-
-        JLabel sub = new JLabel("<html><center>Hệ thống quản lý<br>hồ sơ hội viên</center></html>");
-        sub.setFont(new Font("Segoe UI", Font.PLAIN, 15));
-        sub.setForeground(new Color(255, 255, 255, 180));
+        JLabel sub = makeLabel("Hệ thống quản lý hồ sơ hội viên",
+                new Font("Segoe UI", Font.PLAIN, 13), new Color(255,255,255,160), 430, 22);
+        sub.setBounds(0, 280, 430, 22);
         sub.setHorizontalAlignment(SwingConstants.CENTER);
-        sub.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        left.add(Box.createVerticalGlue());
-        left.add(logo);
-        left.add(Box.createVerticalStrut(16));
-        left.add(title);
-        left.add(title2);
-        left.add(Box.createVerticalStrut(20));
-        left.add(sub);
-        left.add(Box.createVerticalGlue());
+        // Version badge
+        JLabel ver = makeLabel("v2.0  •  2025", new Font("Segoe UI", Font.BOLD, 11),
+                new Color(159, 228, 251, 180), 430, 22);
+        ver.setBounds(0, 390, 430, 22);
+        ver.setHorizontalAlignment(SwingConstants.CENTER);
 
-        // ===== RIGHT PANEL (form) =====
-        JPanel right = new JPanel();
+        left.add(iconCircle);
+        left.add(title1); left.add(title2); left.add(sub); left.add(ver);
+        return left;
+    }
+
+    private JLabel makeLabel(String text, Font font, Color fg, int w, int h) {
+        JLabel l = new JLabel(text);
+        l.setFont(font); l.setForeground(fg);
+        l.setSize(w, h);
+        return l;
+    }
+
+    // ── RIGHT PANEL ───────────────────────────────────────────────────────
+    private JPanel buildRight() {
+        JPanel right = new JPanel(null);
         right.setBackground(Color.WHITE);
-        right.setLayout(new GridBagLayout());
 
-        JPanel form = new JPanel();
-        form.setBackground(Color.WHITE);
-        form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
-        form.setPreferredSize(new Dimension(320, 380));
-
-        JLabel loginTitle = new JLabel("Đăng nhập");
-        loginTitle.setFont(new Font("Segoe UI", Font.BOLD, 26));
-        loginTitle.setForeground(UITheme.TEXT_PRIMARY);
-        loginTitle.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JLabel loginSub = new JLabel("Nhập thông tin tài khoản của bạn");
-        loginSub.setFont(UITheme.FONT_LABEL);
-        loginSub.setForeground(UITheme.TEXT_SECONDARY);
-        loginSub.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        form.add(loginTitle);
-        form.add(Box.createVerticalStrut(4));
-        form.add(loginSub);
-        form.add(Box.createVerticalStrut(32));
-
-        // Username field
-        form.add(makeLabel("Tên đăng nhập"));
-        form.add(Box.createVerticalStrut(6));
-        txtUser = new JTextField();
-        styleInput(txtUser);
-        form.add(txtUser);
-        form.add(Box.createVerticalStrut(18));
-
-        // Password field
-        form.add(makeLabel("Mật khẩu"));
-        form.add(Box.createVerticalStrut(6));
-        txtPass = new JPasswordField();
-        styleInput(txtPass);
-        form.add(txtPass);
-        form.add(Box.createVerticalStrut(28));
-
-        // Login button
-        JButton btnLogin = new JButton("Đăng nhập");
-        btnLogin.setFont(new Font("Segoe UI", Font.BOLD, 15));
-        btnLogin.setBackground(UITheme.PRIMARY);
-        btnLogin.setForeground(Color.WHITE);
-        btnLogin.setFocusPainted(false);
-        btnLogin.setBorderPainted(false);
-        btnLogin.setOpaque(true);
-        btnLogin.setPreferredSize(new Dimension(320, 44));
-        btnLogin.setMaximumSize(new Dimension(320, 44));
-        btnLogin.setAlignmentX(Component.LEFT_ALIGNMENT);
-        btnLogin.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btnLogin.addMouseListener(new MouseAdapter() {
-            public void mouseEntered(MouseEvent e) { btnLogin.setBackground(UITheme.PRIMARY_DARK); }
-            public void mouseExited(MouseEvent e)  { btnLogin.setBackground(UITheme.PRIMARY); }
-        });
-        form.add(btnLogin);
-
-        // Close button top-right
-        JButton btnClose = new JButton("✕");
-        btnClose.setFont(new Font("Segoe UI", Font.PLAIN, 14));
-        btnClose.setBackground(Color.decode("#F1F5F9"));
-        btnClose.setForeground(UITheme.TEXT_SECONDARY);
-        btnClose.setFocusPainted(false);
-        btnClose.setBorderPainted(false);
-        btnClose.setOpaque(true);
-        btnClose.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btnClose.setBounds(858, 10, 32, 32);
+        // Close button
+        JButton btnClose = new JButton("✕") {
+            boolean hov = false;
+            { setOpaque(false); setContentAreaFilled(false); setBorderPainted(false);
+              setFocusPainted(false); setFont(new Font("Segoe UI", Font.BOLD, 13));
+              setForeground(UITheme.TEXT_MUTED); setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+              addMouseListener(new MouseAdapter() {
+                  public void mouseEntered(MouseEvent e) { hov=true; repaint(); }
+                  public void mouseExited (MouseEvent e) { hov=false; repaint(); }
+              });
+            }
+            @Override protected void paintComponent(Graphics g) {
+                if (hov) { g.setColor(new Color(239,68,68,20)); g.fillOval(0,0,getWidth(),getHeight()); }
+                super.paintComponent(g);
+            }
+        };
+        btnClose.setBounds(380, 14, 30, 30);
         btnClose.addActionListener(e -> System.exit(0));
-
-        right.add(form);
-        right.setLayout(null);
-        form.setBounds(90, 90, 320, 400);
-        right.add(form);
         right.add(btnClose);
 
-        root.add(left);
-        root.add(right);
-        add(root);
+        // Title
+        JLabel lTitle = new JLabel("Đăng nhập");
+        lTitle.setFont(new Font("Segoe UI", Font.BOLD, 26));
+        lTitle.setForeground(UITheme.TEXT_PRIMARY);
+        lTitle.setBounds(60, 70, 310, 38);
+        right.add(lTitle);
 
-        // Events
-        btnLogin.addActionListener(e -> login());
-        txtPass.addKeyListener(new KeyAdapter() {
-            public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_ENTER) login();
+        JLabel lSub = new JLabel("Nhập thông tin tài khoản của bạn");
+        lSub.setFont(UITheme.FONT_LABEL);
+        lSub.setForeground(UITheme.TEXT_SECONDARY);
+        lSub.setBounds(60, 108, 310, 20);
+        right.add(lSub);
+
+        // Accent line
+        JPanel accentLine = new JPanel() {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                GradientPaint gp = new GradientPaint(0, 0, UITheme.PRIMARY, getWidth(), 0, UITheme.ACCENT);
+                g2.setPaint(gp);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 3, 3);
+                g2.dispose();
             }
-        });
+        };
+        accentLine.setBounds(60, 135, 50, 3);
+        accentLine.setOpaque(false);
+        right.add(accentLine);
 
-        // Drag window
-        final Point[] dragOffset = {new Point()};
-        left.addMouseListener(new MouseAdapter() {
-            public void mousePressed(MouseEvent e) { dragOffset[0] = e.getPoint(); }
+        // Username
+        JLabel lUser = new JLabel("Tên đăng nhập");
+        lUser.setFont(UITheme.FONT_BOLD);
+        lUser.setForeground(UITheme.TEXT_SECONDARY);
+        lUser.setBounds(60, 160, 310, 18);
+        right.add(lUser);
+
+        txtUser = buildTextField("Nhập tên đăng nhập...");
+        txtUser.setBounds(60, 182, 310, 38);
+        right.add(txtUser);
+
+        // Password
+        JLabel lPass = new JLabel("Mật khẩu");
+        lPass.setFont(UITheme.FONT_BOLD);
+        lPass.setForeground(UITheme.TEXT_SECONDARY);
+        lPass.setBounds(60, 236, 310, 18);
+        right.add(lPass);
+
+        txtPass = new JPasswordField();
+        txtPass.setFont(UITheme.FONT_LABEL);
+        txtPass.setBounds(60, 258, 310, 38);
+        applyBorder(txtPass, false);
+        txtPass.addFocusListener(new FocusAdapter() {
+            public void focusGained(FocusEvent e) { applyBorder(txtPass, true); }
+            public void focusLost  (FocusEvent e) { applyBorder(txtPass, false); }
         });
-        left.addMouseMotionListener(new MouseMotionAdapter() {
-            public void mouseDragged(MouseEvent e) {
-                Point loc = getLocation();
-                setLocation(loc.x + e.getX() - dragOffset[0].x, loc.y + e.getY() - dragOffset[0].y);
-            }
-        });
+        txtPass.addActionListener(e -> doLogin());
+        right.add(txtPass);
+
+        // Error label
+        lblError = new JLabel();
+        lblError.setFont(UITheme.FONT_SMALL);
+        lblError.setForeground(UITheme.DANGER);
+        lblError.setBounds(60, 302, 310, 18);
+        right.add(lblError);
+
+        // Login button
+        btnLogin = UITheme.primaryButton("  Đăng nhập  →");
+        btnLogin.setBounds(60, 330, 310, 42);
+        btnLogin.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        btnLogin.addActionListener(e -> doLogin());
+        right.add(btnLogin);
+
+        // Footer note
+        JLabel note = new JLabel("© 2025  Hệ thống Quản lý Hội viên");
+        note.setFont(UITheme.FONT_SMALL);
+        note.setForeground(UITheme.TEXT_MUTED);
+        note.setBounds(60, 450, 310, 18);
+        note.setHorizontalAlignment(SwingConstants.CENTER);
+        right.add(note);
+
+        return right;
     }
 
-    private JLabel makeLabel(String text) {
-        JLabel lbl = new JLabel(text);
-        lbl.setFont(UITheme.FONT_BOLD);
-        lbl.setForeground(UITheme.TEXT_PRIMARY);
-        lbl.setAlignmentX(Component.LEFT_ALIGNMENT);
-        return lbl;
+    private JTextField buildTextField(String placeholder) {
+        JTextField f = new JTextField();
+        f.setFont(UITheme.FONT_LABEL);
+        applyBorder(f, false);
+        f.addFocusListener(new FocusAdapter() {
+            public void focusGained(FocusEvent e) { applyBorder(f, true); }
+            public void focusLost  (FocusEvent e) { applyBorder(f, false); }
+        });
+        f.addActionListener(e -> doLogin());
+        return f;
     }
 
-    private void styleInput(JTextField field) {
-        field.setFont(UITheme.FONT_LABEL);
-        field.setPreferredSize(new Dimension(320, 40));
-        field.setMaximumSize(new Dimension(320, 40));
-        field.setAlignmentX(Component.LEFT_ALIGNMENT);
-        field.setBorder(BorderFactory.createCompoundBorder(
-            BorderFactory.createLineBorder(UITheme.BORDER_COLOR, 1),
-            BorderFactory.createEmptyBorder(8, 12, 8, 12)
-        ));
+    private void applyBorder(JComponent c, boolean focused) {
+        c.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(focused ? UITheme.PRIMARY : UITheme.BORDER_COLOR, focused ? 2 : 1, true),
+            BorderFactory.createEmptyBorder(6, 12, 6, 12)));
+        c.setBackground(focused ? UITheme.PRIMARY_LIGHT : Color.WHITE);
     }
 
-    private void login() {
+    private void doLogin() {
         String user = txtUser.getText().trim();
         String pass = new String(txtPass.getPassword());
-
         if (user.isEmpty() || pass.isEmpty()) {
-            showError("Vui lòng nhập đầy đủ thông tin!");
+            lblError.setText("  ⚠  Vui lòng nhập đầy đủ thông tin.");
             return;
         }
+        lblError.setText("  ⏳  Đang xác thực...");
+        lblError.setForeground(UITheme.PRIMARY);
+        btnLogin.setEnabled(false);
 
-        if (controller.login(user, pass)) {
-            dispose();
-            SwingUtilities.invokeLater(() -> new MainForm().setVisible(true));
-        } else {
-            showError("Sai tên đăng nhập hoặc mật khẩu!");
-            txtPass.setText("");
-        }
+        SwingWorker<Boolean, Void> worker = new SwingWorker<>() {
+            @Override protected Boolean doInBackground() {
+                return new AuthController().login(user, pass);
+            }
+            @Override protected void done() {
+                try {
+                    if (get()) {
+                        lblError.setText("  ✅  Đăng nhập thành công!");
+                        lblError.setForeground(UITheme.SUCCESS);
+                        Timer t = new Timer(400, ev -> {
+                            dispose();
+                            new MainForm().setVisible(true);
+                        });
+                        t.setRepeats(false); t.start();
+                    } else {
+                        lblError.setText("  ✕  Sai tên đăng nhập hoặc mật khẩu.");
+                        lblError.setForeground(UITheme.DANGER);
+                        txtPass.setText(""); txtPass.requestFocus();
+                        btnLogin.setEnabled(true);
+                        // Shake effect
+                        shakeComponent(txtUser);
+                        shakeComponent(txtPass);
+                    }
+                } catch (Exception ex) {
+                    lblError.setText("  Lỗi kết nối: " + ex.getMessage());
+                    btnLogin.setEnabled(true);
+                }
+            }
+        };
+        worker.execute();
     }
 
-    private void showError(String msg) {
-        JOptionPane.showMessageDialog(this, msg, "Lỗi đăng nhập", JOptionPane.ERROR_MESSAGE);
+    private void shakeComponent(JComponent c) {
+        Point original = c.getLocation();
+        Timer t = new Timer(30, null);
+        final int[] count = {0};
+        final int[] offsets = {6, -6, 4, -4, 2, -2, 0};
+        t.addActionListener(e -> {
+            if (count[0] < offsets.length) {
+                c.setLocation(original.x + offsets[count[0]], original.y);
+                count[0]++;
+            } else {
+                c.setLocation(original);
+                t.stop();
+            }
+        });
+        t.start();
+    }
+
+    private void addDragToMove(JPanel root) {
+        final Point[] dragStart = {null};
+        root.addMouseListener(new MouseAdapter() {
+            public void mousePressed(MouseEvent e) { dragStart[0] = e.getPoint(); }
+        });
+        root.addMouseMotionListener(new MouseMotionAdapter() {
+            public void mouseDragged(MouseEvent e) {
+                if (dragStart[0] != null) {
+                    Point loc = getLocation();
+                    setLocation(loc.x + e.getX() - dragStart[0].x,
+                                loc.y + e.getY() - dragStart[0].y);
+                }
+            }
+        });
     }
 }

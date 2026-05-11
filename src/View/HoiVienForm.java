@@ -56,7 +56,8 @@ public class HoiVienForm extends JPanel {
         JLabel title = new JLabel("Quản lý Hội viên");
         title.setFont(UITheme.FONT_TITLE);
         title.setForeground(UITheme.TEXT_PRIMARY);
-        JButton btnAdd = UITheme.primaryButton("+ Thêm mới");
+        JButton btnAdd = UITheme.primaryButton("  ＋  Thêm hội viên");
+        btnAdd.setPreferredSize(new Dimension(170, 38));
         header.add(title, BorderLayout.WEST);
         header.add(btnAdd, BorderLayout.EAST);
         add(header, BorderLayout.NORTH);
@@ -74,9 +75,9 @@ public class HoiVienForm extends JPanel {
         cbTrangThai = new JComboBox<>(new String[]{"Trạng thái","Hoạt động","Đã rời"});
         styleCombo(cbThang); styleCombo(cbNam); styleCombo(cbTrangThai);
 
-        JButton btnSearch = UITheme.primaryButton("🔍 Tìm kiếm");
-        JButton btnReset  = UITheme.outlineButton("↺ Đặt lại");
-        JButton btnExport = UITheme.outlineButton("📥 Xuất Excel");
+        JButton btnSearch = UITheme.primaryButton("Tìm kiếm");
+        JButton btnReset  = UITheme.outlineButton("Đặt lại");
+        JButton btnExport = UITheme.outlineButton("Xuất Excel");
 
         filterCard.add(new JLabel("Tìm kiếm:"));
         filterCard.add(txtSearch);
@@ -130,8 +131,8 @@ public class HoiVienForm extends JPanel {
 
         JPanel tblActions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         tblActions.setOpaque(false);
-        JButton btnEdit = UITheme.outlineButton("✏ Sửa");
-        JButton btnDel  = UITheme.dangerButton("🗑 Xóa");
+        JButton btnEdit = UITheme.outlineButton("Chỉnh sửa");
+        JButton btnDel  = UITheme.dangerButton("Xóa");
         tblActions.add(btnEdit);
         tblActions.add(btnDel);
         tableHeader.add(tblTitle, BorderLayout.WEST);
@@ -302,7 +303,7 @@ public class HoiVienForm extends JPanel {
         btns.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, UITheme.BORDER_COLOR));
         JButton btnLeaveReq = UITheme.dangerButton("Yêu cầu rời hội");
         JButton btnPdf = createPdfButton();
-        JButton btnEdit  = UITheme.outlineButton("✏ Chỉnh sửa");
+        JButton btnEdit  = UITheme.outlineButton("Chỉnh sửa");
         JButton btnClose = UITheme.primaryButton("Đóng");
         btns.add(btnLeaveReq);
         btns.add(btnPdf);
@@ -336,7 +337,7 @@ public class HoiVienForm extends JPanel {
     
     
     private JButton createPdfButton() {
-        JButton btn = new JButton("📄 Xuất hồ sơ PDF");
+        JButton btn = new JButton("Xuất hồ sơ PDF");
         btn.setFont(new Font("Segoe UI", Font.BOLD, 13));
         btn.setForeground(Color.WHITE);
         btn.setBackground(new Color(220, 53, 69));
@@ -364,7 +365,7 @@ public class HoiVienForm extends JPanel {
         JPanel fh = new JPanel(new BorderLayout());
         fh.setBackground(UITheme.PRIMARY);
         fh.setBorder(new EmptyBorder(14, 20, 14, 20));
-        JLabel hl = new JLabel(isEdit ? "✏  Chỉnh sửa hội viên" : "➕  Thêm hội viên mới");
+        JLabel hl = new JLabel(isEdit ? "Chỉnh sửa hội viên" : "Thêm hội viên mới");
         hl.setFont(new Font("Segoe UI", Font.BOLD, 16));
         hl.setForeground(Color.WHITE);
         fh.add(hl);
@@ -438,7 +439,7 @@ public class HoiVienForm extends JPanel {
 
         JPanel imgBtns = new JPanel(new GridLayout(3, 1, 0, 6));
         imgBtns.setOpaque(false);
-        JButton btnChooseImg = UITheme.outlineButton("📁 Chọn ảnh");
+        JButton btnChooseImg = UITheme.outlineButton("Chọn ảnh");
         JLabel lblImgStatus  = new JLabel("(chưa chọn)");
         lblImgStatus.setFont(UITheme.FONT_SMALL);
         lblImgStatus.setForeground(UITheme.TEXT_MUTED);

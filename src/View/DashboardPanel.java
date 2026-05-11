@@ -177,9 +177,9 @@ public class DashboardPanel extends JPanel {
         // Row 2: action buttons
         JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         btnRow.setOpaque(false);
-        JButton btnApply  = actionBtn("▶ Áp dụng", BLUE);
-        JButton btnReload = actionBtn("↻ Tải lại", GREEN);
-        JButton btnExport = actionBtn("📥 Xuất",   PURPLE);
+        JButton btnApply  = actionBtn("Áp dụng", BLUE);
+        JButton btnReload = actionBtn("Tải lại", GREEN);
+        JButton btnExport = actionBtn("Xuất file",   PURPLE);
         btnApply.setPreferredSize(new Dimension(100, 32));
         btnReload.setPreferredSize(new Dimension(100, 32));
         btnExport.setPreferredSize(new Dimension(90,  32));
@@ -339,8 +339,8 @@ public class DashboardPanel extends JPanel {
         JPanel tabs = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         tabs.setOpaque(false);
 
-        JToggleButton tbChart = toggleBtn("📊 Biểu đồ",       true);
-        JToggleButton tbTable = toggleBtn("📋 Bảng số liệu",  false);
+        JToggleButton tbChart = toggleBtn("Biểu đồ",       true);
+        JToggleButton tbTable = toggleBtn("Bảng số liệu",  false);
         ButtonGroup bg = new ButtonGroup();
         bg.add(tbChart); bg.add(tbTable);
 
@@ -372,8 +372,8 @@ public class DashboardPanel extends JPanel {
         row1.setOpaque(false);
         row1.setMaximumSize(new Dimension(Integer.MAX_VALUE, 320));
 
-        donutHolder = chartCard("🧩 Cơ cấu hội viên");
-        barHolder   = chartCard("📊 Hoạt động theo loại");
+        donutHolder = chartCard("Cơ cấu hội viên");
+        barHolder   = chartCard("Hoạt động theo loại");
         row1.add(donutHolder);
         row1.add(barHolder);
 
@@ -615,7 +615,7 @@ public class DashboardPanel extends JPanel {
     }
 
     private JPanel buildTopMembersChart() {
-        JPanel outer = sectionCard("🏆 Top 5 hội viên tích cực");
+        JPanel outer = sectionCard("Top 5 hội viên tích cực");
 
         String sql = "SELECT TOP 5 hv.tenHoiVien, hv.email, COUNT(tg.idHoatDong) soLan "
                    + "FROM HoiVien hv JOIN ThamGia tg ON hv.id=tg.idHoiVien "
@@ -722,7 +722,7 @@ public class DashboardPanel extends JPanel {
     }
 
     private JPanel buildRecentActivitiesChart() {
-        JPanel outer = sectionCard("📅 Hoạt động gần đây");
+        JPanel outer = sectionCard("Hoạt động gần đây");
 
         String sql = "SELECT TOP 6 tenHoatDong, loaiHoatDong, "
                    + "CONVERT(varchar,thoiGianBatDau,120) tgBatDau, "
@@ -817,7 +817,7 @@ public class DashboardPanel extends JPanel {
             new String[]{"Trạng thái", "Số lượng", "Tỷ lệ (%)", "So với kỳ trước"}, 0) {
             public boolean isCellEditable(int r, int c) { return false; }
         };
-        outer.add(sectionTable("3.1  Cơ cấu hội viên", tblCoCapHoiVien, 150));
+        outer.add(sectionTable("Cơ cấu hội viên", tblCoCapHoiVien, 150));
         outer.add(Box.createVerticalStrut(16));
 
         // 3.2 Hoạt động theo loại
@@ -826,7 +826,7 @@ public class DashboardPanel extends JPanel {
                          "TB tham gia/HĐ", "HĐ phổ biến nhất"}, 0) {
             public boolean isCellEditable(int r, int c) { return false; }
         };
-        outer.add(sectionTable("3.2  Hoạt động theo loại", tblHoatDongLoai, 180));
+        outer.add(sectionTable("Hoạt động theo loại", tblHoatDongLoai, 180));
         outer.add(Box.createVerticalStrut(16));
 
         // 3.3 Top hội viên tích cực
@@ -835,7 +835,7 @@ public class DashboardPanel extends JPanel {
                          "HĐ tham gia gần nhất", "Trạng thái"}, 0) {
             public boolean isCellEditable(int r, int c) { return false; }
         };
-        outer.add(sectionTableWithSearch("3.3  Top hội viên tích cực", tblTopHoiVien, 220));
+        outer.add(sectionTableWithSearch("Top hội viên tích cực", tblTopHoiVien, 220));
         outer.add(Box.createVerticalStrut(16));
 
         // 3.4 Hoạt động gần đây
@@ -844,7 +844,7 @@ public class DashboardPanel extends JPanel {
                          "Địa điểm", "Số đăng ký", "Trạng thái"}, 0) {
             public boolean isCellEditable(int r, int c) { return false; }
         };
-        outer.add(sectionTable("3.4  Hoạt động gần đây", tblHoatDongGanDay, 220));
+        outer.add(sectionTable("Hoạt động gần đây", tblHoatDongGanDay, 220));
 
         return outer;
     }
@@ -1134,9 +1134,9 @@ public class DashboardPanel extends JPanel {
         txtTopSearch.setFont(FONT_LABEL);
         txtTopSearch.setBorder(new CompoundBorder(new LineBorder(BORDER_C,1,true),
             new EmptyBorder(5,8,5,8)));
-        JButton btnSearch = actionBtn("🔍 Tìm", BLUE);
+        JButton btnSearch = actionBtn("Tìm", BLUE);
         btnSearch.setPreferredSize(new Dimension(90, 32));
-        JButton btnReset = actionBtn("↺ Đặt lại", new Color(107,114,128));
+        JButton btnReset = actionBtn("Đặt lại", new Color(107,114,128));
         btnReset.setPreferredSize(new Dimension(90, 32));
         topBar.add(lbl("Tìm kiếm:", FONT_BOLD, TXT_S));
         topBar.add(txtTopSearch);
@@ -1268,7 +1268,7 @@ public class DashboardPanel extends JPanel {
 
         JPanel fmtBtns = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         fmtBtns.setBackground(CARD);
-        JButton btnExcel = actionBtn("📗 Xuất Excel", GREEN);
+        JButton btnExcel = actionBtn("Xuất Excel", GREEN);
         btnExcel.setPreferredSize(new Dimension(130, 36));
         JButton btnCancel = actionBtn("Hủy", new Color(107,114,128));
         btnCancel.setPreferredSize(new Dimension(80, 36));
