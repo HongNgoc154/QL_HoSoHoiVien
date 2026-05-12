@@ -66,16 +66,16 @@ public class NhanVienForm extends JPanel {
 
         JButton btnSearch = UITheme.primaryButton("Tìm");
         JButton btnReset  = UITheme.outlineButton("Đặt lại");
-        JButton btnExport = UITheme.outlineButton("Xuất");
+//        JButton btnExport = UITheme.outlineButton("Xuất");
         btnSearch.setPreferredSize(new Dimension(90, 34));
         btnReset .setPreferredSize(new Dimension(96, 34));
-        btnExport.setPreferredSize(new Dimension(90, 34));
+//        btnExport.setPreferredSize(new Dimension(90, 34));
         btnSearch.addActionListener(e -> search());
         btnReset .addActionListener(e -> { txtSearch.setText(""); cbVaiTro.setSelectedIndex(0); loadTable(); });
-        btnExport.addActionListener(e -> ExcelExporter.exportToCSV(table, "NhanVien", this));
+//        btnExport.addActionListener(e -> ExcelExporter.exportToCSV(table, "NhanVien", this));
 
         bar.add(sw); bar.add(cbVaiTro);
-        bar.add(btnSearch); bar.add(btnReset); bar.add(btnExport);
+        bar.add(btnSearch); bar.add(btnReset); //bar.add(btnExport);
         card.add(bar, BorderLayout.CENTER);
         return card;
     }
@@ -109,11 +109,13 @@ public class NhanVienForm extends JPanel {
 
         JPanel acts = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         acts.setOpaque(false);
+        JButton btnExport = UITheme.outlineButton("Xuất");
         JButton btnEdit = UITheme.outlineButton("Chỉnh sửa");
         JButton btnDel  = UITheme.dangerButton("Xóa");
+        btnExport.addActionListener(e -> ExcelExporter.exportToCSV(table, "NhanVien", this));
         btnEdit.addActionListener(e -> editSelected());
         btnDel .addActionListener(e -> deleteSelected());
-        acts.add(btnEdit); acts.add(btnDel);
+        acts.add(btnExport); acts.add(btnEdit); acts.add(btnDel);
         tblHead.add(acts, BorderLayout.EAST);
 
         card.add(tblHead, BorderLayout.NORTH);

@@ -6,6 +6,7 @@ package Main;
 import View.LoginForm;
 import database.DatabaseHelper;
 import Util.EmailConfirmServer;
+import com.formdev.flatlaf.FlatLightLaf;
 
 /**
  *
@@ -13,6 +14,14 @@ import Util.EmailConfirmServer;
  */
 public class Main {
     public static void main(String[] args) {
+        
+        
+        try {
+            // bật giao diện FlatLaf
+            FlatLightLaf.setup();
+        } catch (Exception ex) {
+            System.out.println("Failed to initialize FlatLaf");
+        }
 
         // test kết nối DB
         DatabaseHelper.getConnection();
