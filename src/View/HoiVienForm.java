@@ -1,6 +1,7 @@
 package View;
 
 import dao.NhatKyDAO;
+import dao.ArchiveDAO;
 import Util.*;
 import database.DatabaseHelper;
 
@@ -618,18 +619,34 @@ public class HoiVienForm extends JPanel {
         if (row < 0) { JOptionPane.showMessageDialog(this, "Vui lòng chọn dòng cần xóa!"); return; }
         int id   = (int) model.getValueAt(row, COL_ID);
         String name = str(model.getValueAt(row, COL_TEN));
+        String trangThai = str(model.getValueAt(row, COL_TRANGTHAI));
+        if (!"Đã rời".equalsIgnoreCase(trangThai)) {
+            JOptionPane.showMessageDialog(this, "Chỉ được xóa hội viên ở trạng thái \"Đã rời\".");
+            return;
+        }
+        try (Connection conn = DatabaseHelper.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                 "SELECT COUNT(*) FROM ThamGia tg JOIN HoatDong hd ON tg.idHoatDong=hd.id WHERE tg.idHoiVien=? AND hd.thoiGianKetThuc>=GETDATE()")) {
+            ps.setInt(1, id);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next() && rs.getInt(1) > 0) {
+                JOptionPane.showMessageDialog(this, "Hội viên còn tham gia hoạt động đang/sắp diễn ra, không thể xóa.");
+                return;
+            }
+        } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Lỗi kiểm tra: " + ex.getMessage()); return; }
         int confirm = JOptionPane.showConfirmDialog(this,
-            "Bạn có chắc chắn muốn xóa hội viên\n\"" + name + "\" không?",
+            "Bạn có chắc chắn muốn xóa hội viên này không?",
             "Xác nhận xóa", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (confirm == JOptionPane.YES_OPTION) {
             try (Connection conn = DatabaseHelper.getConnection();
                  PreparedStatement ps = conn.prepareStatement("DELETE FROM HoiVien WHERE id=?")) {
+                ArchiveDAO.archiveByQuery("Hội viên", id, "HoiVien", "id", Session.getCurrentUserId(), "XÓA");
                 ps.setInt(1, id);
                 ps.executeUpdate();
                 NhatKyDAO.log(Session.getCurrentUserId(), "XÓA", "HoiVien",
                     "Xóa hội viên ID: " + id);
                 loadTable();
-                JOptionPane.showMessageDialog(this, "Xóa thành công!",
+                JOptionPane.showMessageDialog(this, "Xóa hội viên thành công",
                     "Thành công", JOptionPane.INFORMATION_MESSAGE);
             } catch (Exception e) {
                 JOptionPane.showMessageDialog(this, "Lỗi khi xóa: " + e.getMessage());

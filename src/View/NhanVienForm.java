@@ -2,6 +2,7 @@ package View;
 
 import Util.*;
 import dao.NhatKyDAO;
+import dao.ArchiveDAO;
 import database.DatabaseHelper;
 
 import javax.swing.*;
@@ -177,8 +178,13 @@ public class NhanVienForm extends JPanel {
         int row = table.getSelectedRow();
         if (row < 0) { JOptionPane.showMessageDialog(this, "Vui lòng chọn dòng cần xóa!"); return; }
         int id = (int) model.getValueAt(row, 0);
+        String trangThai = str(model.getValueAt(row, 8));
         if (id == Session.getCurrentUserId()) {
             JOptionPane.showMessageDialog(this, "Không thể xóa tài khoản đang đăng nhập!");
+            return;
+        }
+        if ("Đang làm".equalsIgnoreCase(trangThai)) {
+            JOptionPane.showMessageDialog(this, "Không cho phép xóa nhân viên đang ở trạng thái \"Đang làm\".");
             return;
         }
         int ok = JOptionPane.showConfirmDialog(this, "Xác nhận xóa nhân viên này?",
@@ -186,9 +192,11 @@ public class NhanVienForm extends JPanel {
         if (ok == JOptionPane.YES_OPTION) {
             try (Connection c = DatabaseHelper.getConnection();
                  PreparedStatement ps = c.prepareStatement("DELETE FROM NhanVien WHERE id=?")) {
+                ArchiveDAO.archiveByQuery("Nhân viên", id, "NhanVien", "id", Session.getCurrentUserId(), "XÓA");
                 ps.setInt(1, id); ps.executeUpdate();
                 NhatKyDAO.log(Session.getCurrentUserId(), "XÓA", "Nhân viên", "Xóa nhân viên ID: " + id);
                 loadTable();
+                JOptionPane.showMessageDialog(this, "Nhân viên đã được xóa thành công");
             } catch (Exception e) { JOptionPane.showMessageDialog(this, "Lỗi: " + e.getMessage()); }
         }
     }

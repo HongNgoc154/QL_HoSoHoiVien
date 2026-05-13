@@ -60,6 +60,7 @@ public class MainForm extends JFrame {
         if (isAdmin()) {
             contentPanel.add(new NhanVienForm(), "nhanvien");
             contentPanel.add(new NhatKyForm(),   "nhatky");
+            contentPanel.add(new ArchiveForm(),    "archive");
         }
         add(contentPanel, BorderLayout.CENTER);
         switchPanel("dashboard");
@@ -98,6 +99,7 @@ public class MainForm extends JFrame {
             sb.add(sectionLabel("QUẢN TRỊ"));
             addNavBtn(sb, "🧑", "Nhân viên", "nhanvien");
             addNavBtn(sb, "📋", "Nhật ký",   "nhatky");
+            addNavBtn(sb, "🗄", "Kho lưu trữ",       "archive");
         }
         sb.add(Box.createVerticalGlue());
         sb.add(buildUserCard());

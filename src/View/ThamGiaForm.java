@@ -1,6 +1,8 @@
 package View;
 
 import Util.*;
+import dao.ArchiveDAO;
+import dao.NhatKyDAO;
 import database.DatabaseHelper;
 
 import javax.swing.*;
@@ -193,6 +195,11 @@ public class ThamGiaForm extends JPanel {
         int row = table.getSelectedRow();
         if (row < 0) { msg("Vui lòng chọn dòng cần xóa!"); return; }
         int id = (int) model.getValueAt(row, 0);
+        String tt = String.valueOf(model.getValueAt(row, 4));
+        if (!("Đã từ chối".equalsIgnoreCase(tt) || "Đã hủy".equalsIgnoreCase(tt))) {
+            msg("Chỉ được xóa khi đăng ký bị từ chối/hủy hoặc hoạt động đã kết thúc.");
+            return;
+        }
         int ok = JOptionPane.showConfirmDialog(this,
             "Xác nhận xóa đăng ký tham gia này?\n"
           + "Hội viên: " + model.getValueAt(row, 2) + "\n"
@@ -201,7 +208,9 @@ public class ThamGiaForm extends JPanel {
         if (ok == JOptionPane.YES_OPTION) {
             try (Connection c = DatabaseHelper.getConnection();
                  PreparedStatement ps = c.prepareStatement("DELETE FROM ThamGia WHERE id=?")) {
+                ArchiveDAO.archiveByQuery("Tham gia", id, "ThamGia", "id", Session.getCurrentUserId(), "XÓA");
                 ps.setInt(1, id); ps.executeUpdate(); loadTable();
+                NhatKyDAO.log(Session.getCurrentUserId(), "XÓA", "Kho lưu trữ", "Xóa tham gia ID: " + id);
             } catch (Exception e) { msg("Lỗi: " + e.getMessage()); }
         }
     }

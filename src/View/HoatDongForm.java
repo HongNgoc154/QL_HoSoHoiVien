@@ -2,6 +2,7 @@ package View;
 
 import Util.*;
 import dao.NhatKyDAO;
+import dao.ArchiveDAO;
 import database.DatabaseHelper;
 
 import javax.swing.*;
@@ -230,17 +231,33 @@ public class HoatDongForm extends JPanel {
         int row = table.getSelectedRow();
         if (row < 0) { JOptionPane.showMessageDialog(this, "Vui lòng chọn dòng cần xóa!"); return; }
         int id = (int) model.getValueAt(row, 0);
+        String status = String.valueOf(model.getValueAt(row, 9));
+        if (!"Đã kết thúc".equalsIgnoreCase(status)) {
+            JOptionPane.showMessageDialog(this, "Chỉ được xóa hoạt động đã kết thúc.");
+            return;
+        }
+        try (Connection c = DatabaseHelper.getConnection();
+             PreparedStatement p1 = c.prepareStatement("SELECT COUNT(*) FROM ThamGia WHERE idHoatDong=?")) {
+            p1.setInt(1, id);
+            ResultSet rs = p1.executeQuery();
+            if (rs.next() && rs.getInt(1) > 0) {
+                JOptionPane.showMessageDialog(this, "Hoạt động đã có hội viên tham gia, không thể xóa.");
+                return;
+            }
+        } catch (Exception ex) { JOptionPane.showMessageDialog(this, "Lỗi kiểm tra: " + ex.getMessage()); return; }
         if (JOptionPane.showConfirmDialog(this,
                 "Bạn có chắc chắn muốn xóa hoạt động này?",
                 "Xác nhận xóa", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE)
                 == JOptionPane.YES_OPTION) {
             try (Connection c = DatabaseHelper.getConnection();
                  PreparedStatement ps = c.prepareStatement("DELETE FROM HoatDong WHERE id=?")) {
+                ArchiveDAO.archiveByQuery("Hoạt động", id, "HoatDong", "id", Session.getCurrentUserId(), "XÓA");
                 ps.setInt(1, id);
                 ps.executeUpdate();
                 loadTable();
                 refreshFilterLoai();
                 NhatKyDAO.log(Session.getCurrentUserId(), "Xóa", "HoatDong", "Xóa hoạt động ID=" + id);
+                JOptionPane.showMessageDialog(this, "Xóa hoạt động thành công.");
             } catch (Exception e) { JOptionPane.showMessageDialog(this, "Lỗi: " + e.getMessage()); }
         }
     }
