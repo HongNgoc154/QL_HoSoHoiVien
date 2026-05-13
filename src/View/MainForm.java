@@ -547,6 +547,12 @@ public class MainForm extends JFrame {
         put("hoatdong","Hoạt động"); put("thamgia","Tham gia");
         put("nhanvien","Nhân viên"); put("nhatky","Nhật ký");
     }};
+    
+    
+    public void navigateToPanel(String name){
+        switchPanel(name);
+        sidebar.repaint();
+    }
 
     private void switchPanel(String name){
         cardLayout.show(contentPanel,name);

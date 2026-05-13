@@ -1232,7 +1232,7 @@ public class DashboardPanel extends JPanel {
         List<NotifItem> allNotifs = new ArrayList<>();
         try (Connection conn = connGetter.get()) {
             if (conn == null) throw new Exception("No connection");
-            String sql = "SELECT tb.id, tb.noiDung, tb.thoiGian, tb.daDoc, "
+            String sql = "SELECT tb.id, tb.noiDung, tb.thoiGian, tb.daDoc, tb.idDangKyTam, tb.idYeuCauRoiHoi, "
                 + "ISNULL(dkt.trangThai,'') trangThaiDKT, "
                 + "ISNULL(ycr.trangThai,'') trangThaiYCR "
                 + "FROM ThongBao tb "
@@ -1247,6 +1247,8 @@ public class DashboardPanel extends JPanel {
                     Timestamp ts = rs.getTimestamp("thoiGian");
                     ni.thoiGian  = ts != null ? ts.toString().substring(0,16) : "";
                     ni.daDoc     = rs.getBoolean("daDoc");
+                    ni.idDangKyTam = rs.getObject("idDangKyTam") != null ? rs.getInt("idDangKyTam") : null;
+                    ni.idYeuCauRoiHoi = rs.getObject("idYeuCauRoiHoi") != null ? rs.getInt("idYeuCauRoiHoi") : null;
                     String ttDKT = rs.getString("trangThaiDKT");
                     String ttYCR = rs.getString("trangThaiYCR");
                     // Xác định trạng thái xử lý
@@ -1419,15 +1421,387 @@ public class DashboardPanel extends JPanel {
                         if (bellBtn!=null) bellBtn.repaint();
                     } catch (Exception ignored) {}
                 }
+                showNotificationDetail(dlg.getOwner(), ni, connGetter, bellBtn, () -> { if (bellBtn!=null) bellBtn.repaint(); });
             }
         });
         return cell;
+    }
+    
+    
+    private static void handleRejectNotification(
+        Component parent,
+        NotifItem ni) {
+
+    try(Connection conn =
+            DatabaseHelper.getConnection()) {
+
+        // =========================
+        // TỪ CHỐI ĐĂNG KÝ HOẠT ĐỘNG
+        // =========================
+
+        if(ni.idDangKyTam != null){
+
+            PreparedStatement ps =
+                    conn.prepareStatement(
+
+                "UPDATE DangKyTam " +
+                "SET trangThai=N'Từ chối' " +
+                "WHERE id=?"
+            );
+
+            ps.setInt(1, ni.idDangKyTam);
+
+            ps.executeUpdate();
+
+            JOptionPane.showMessageDialog(
+                    parent,
+                    "Đã từ chối đăng ký hoạt động."
+            );
+        }
+
+        // =========================
+        // TỪ CHỐI RỜI HỘI
+        // =========================
+
+        if(ni.idYeuCauRoiHoi != null){
+
+            PreparedStatement ps =
+                    conn.prepareStatement(
+
+                "UPDATE YeuCauRoiHoi " +
+                "SET trangThai=N'Từ chối' " +
+                "WHERE id=?"
+            );
+
+            ps.setInt(1, ni.idYeuCauRoiHoi);
+
+            ps.executeUpdate();
+
+            JOptionPane.showMessageDialog(
+                    parent,
+                    "Đã từ chối yêu cầu rời hội."
+            );
+        }
+
+    } catch(Exception e){
+
+        JOptionPane.showMessageDialog(
+                parent,
+                "Lỗi: " + e.getMessage()
+        );
+    }
+}
+    
+    
+    /** Hiển thị dialog chi tiết thông báo với UI custom + animation mở. */
+    private static void showNotificationDetail(Window owner, NotifItem ni,
+                                               java.util.function.Supplier<Connection> connGetter,
+                                               JButton bellBtn, Runnable refreshCallback) {
+        JDialog detail = new JDialog(owner, "Chi tiết thông báo", Dialog.ModalityType.APPLICATION_MODAL);
+        detail.setUndecorated(true);
+        detail.setSize(560, 380);
+        detail.setLocationRelativeTo(owner);
+        detail.setLayout(new BorderLayout());
+
+        NotificationType type = detectNotificationType(ni);
+        Color baseColor = type.accent;
+
+        JPanel shell = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(Color.WHITE);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
+                g2.setColor(new Color(220, 226, 236));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 18, 18);
+                g2.dispose();
+            }
+        };
+        shell.setOpaque(false);
+        shell.setBorder(new EmptyBorder(2, 2, 2, 2));
+
+        JPanel header = new JPanel(new BorderLayout()) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                GradientPaint gp = new GradientPaint(0, 0, BLUE, getWidth(), 0, new Color(67, 97, 238));
+                g2.setPaint(gp);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight() + 16, 16, 16);
+                g2.dispose();
+            }
+        };
+        header.setOpaque(false);
+        header.setBorder(new EmptyBorder(14, 16, 14, 16));
+        JLabel title = new JLabel(type.icon + " " + type.title);
+        title.setFont(new Font("Segoe UI", Font.BOLD, 16));
+        title.setForeground(Color.WHITE);
+        JButton btnClose = new JButton("✕");
+        btnClose.setFont(new Font("Segoe UI", Font.BOLD, 14));
+        btnClose.setForeground(Color.WHITE);
+        btnClose.setOpaque(false); btnClose.setContentAreaFilled(false); btnClose.setBorderPainted(false);
+        btnClose.addActionListener(e -> detail.dispose());
+        header.add(title, BorderLayout.WEST);
+        header.add(btnClose, BorderLayout.EAST);
+
+        JPanel content = new JPanel();
+        content.setBackground(Color.WHITE);
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBorder(new EmptyBorder(16, 20, 12, 20));
+
+        content.add(buildDetailRow("Tiêu đề", type.title));
+        content.add(buildDetailRow("Loại thông báo", type.displayName));
+        content.add(buildDetailRow("Trạng thái xử lý", ni.trangThaiXuLy));
+        content.add(buildDetailRow("Thời gian tạo", ni.thoiGian));
+        JTextArea body = new JTextArea(ni.noiDung == null ? "" : ni.noiDung);
+        body.setLineWrap(true); body.setWrapStyleWord(true); body.setEditable(false);
+        body.setFont(new Font("Segoe UI", Font.PLAIN, 13));
+        body.setBackground(new Color(248, 250, 253));
+        body.setBorder(new CompoundBorder(new LineBorder(new Color(228, 234, 244), 1, true), new EmptyBorder(10, 12, 10, 12)));
+        body.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
+        content.add(Box.createVerticalStrut(10));
+        content.add(body);
+
+        JPanel foot = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 10));
+        JButton btnApprove =
+        new JButton("✔ Duyệt");
+
+        JButton btnReject =
+        new JButton("✖ Từ chối");
+        btnApprove.addActionListener(e -> {
+
+        handleApproveNotification(
+                detail,
+                ni
+        );
+        
+        btnReject.addActionListener(e -> {
+
+        handleRejectNotification(
+                detail,
+                ni
+        );
+
+        detail.dispose();
+    });
+
+        detail.dispose();
+    });
+        foot.setOpaque(false);
+        JButton actionBtn = new JButton(type.actionLabel);
+        actionBtn.setVisible(type != NotificationType.GENERAL);
+        actionBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        actionBtn.setBackground(baseColor); actionBtn.setForeground(Color.WHITE);
+        actionBtn.setBorderPainted(false); actionBtn.setFocusPainted(false);
+        actionBtn.addActionListener(e -> {
+
+        handleApproveNotification(
+                detail,
+                ni
+        );
+
+        detail.dispose();
+    });
+        JButton closeBtn = new JButton("Đóng");
+        closeBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        closeBtn.addActionListener(e -> detail.dispose());
+        foot.add(btnApprove);
+        foot.add(btnReject);
+
+        foot.add(actionBtn);
+        foot.add(closeBtn);
+
+        shell.add(header, BorderLayout.NORTH);
+        shell.add(content, BorderLayout.CENTER);
+        shell.add(foot, BorderLayout.SOUTH);
+        detail.setContentPane(shell);
+
+        javax.swing.Timer openFx = new javax.swing.Timer(10, null);
+        final float[] opacity = {0.0f};
+        detail.setOpacity(0.05f);
+        openFx.addActionListener(e -> {
+            opacity[0] += 0.12f;
+            if (opacity[0] >= 1f) { detail.setOpacity(1f); openFx.stop(); }
+            else detail.setOpacity(opacity[0]);
+        });
+        openFx.start();
+        detail.setVisible(true);
+    }
+
+    private static JPanel buildDetailRow(String label, String value) {
+        JPanel row = new JPanel(new BorderLayout(8, 0));
+        row.setOpaque(false);
+        row.setBorder(new EmptyBorder(3, 0, 3, 0));
+        JLabel l1 = new JLabel(label + ":");
+        l1.setFont(new Font("Segoe UI", Font.BOLD, 12));
+        l1.setForeground(new Color(71, 85, 105));
+        JLabel l2 = new JLabel(value == null ? "" : value);
+        l2.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+        l2.setForeground(TXT_H);
+        row.add(l1, BorderLayout.WEST); row.add(l2, BorderLayout.CENTER);
+        return row;
+    }
+
+    private static NotificationType detectNotificationType(NotifItem ni) {
+        String lower = ni.noiDung == null ? "" : ni.noiDung.toLowerCase(new Locale("vi"));
+        String status = ni.trangThaiXuLy == null ? "" : ni.trangThaiXuLy.toLowerCase(new Locale("vi"));
+        if (ni.idDangKyTam != null || lower.contains("đăng ký") || lower.contains("tham gia")) return NotificationType.REGISTRATION;
+        if (ni.idYeuCauRoiHoi != null || lower.contains("rời hội") || status.contains("rời")) return NotificationType.LEAVE_REQUEST;
+        return NotificationType.GENERAL;
+    }
+
+    private static void handleApproveNotification(
+        Component parent,
+        NotifItem ni) {
+
+    try(Connection conn =
+            DatabaseHelper.getConnection()) {
+
+        // =========================
+        // DUYỆT ĐĂNG KÝ HOẠT ĐỘNG
+        // =========================
+
+        if(ni.idDangKyTam != null){
+
+            PreparedStatement ps =
+                    conn.prepareStatement(
+
+                "SELECT * FROM DangKyTam " +
+                "WHERE id=?"
+            );
+
+            ps.setInt(1, ni.idDangKyTam);
+
+            ResultSet rs = ps.executeQuery();
+
+            if(rs.next()){
+
+                int idHoiVien =
+                        rs.getInt("idHoiVien");
+
+                int idHoatDong =
+                        rs.getInt("idHoatDong");
+
+                // cập nhật trạng thái
+
+                PreparedStatement upd =
+                        conn.prepareStatement(
+
+                    "UPDATE DangKyTam " +
+                    "SET trangThai=N'Đã duyệt' " +
+                    "WHERE id=?"
+                );
+
+                upd.setInt(1, ni.idDangKyTam);
+
+                upd.executeUpdate();
+
+                // thêm bảng tham gia
+
+                PreparedStatement tg =
+                        conn.prepareStatement(
+
+                    "INSERT INTO ThamGia(" +
+                    "idHoiVien," +
+                    "idHoatDong," +
+                    "ngayDangKy," +
+                    "trangThai" +
+                    ") VALUES(?,?,GETDATE(),N'Đã đăng ký')"
+                );
+
+                tg.setInt(1, idHoiVien);
+
+                tg.setInt(2, idHoatDong);
+
+                tg.executeUpdate();
+
+                JOptionPane.showMessageDialog(
+                        parent,
+                        "Đã duyệt đăng ký hoạt động."
+                );
+            }
+        }
+
+        // =========================
+        // DUYỆT RỜI HỘI
+        // =========================
+
+        if(ni.idYeuCauRoiHoi != null){
+
+            PreparedStatement ps =
+                    conn.prepareStatement(
+
+                "SELECT * FROM YeuCauRoiHoi " +
+                "WHERE id=?"
+            );
+
+            ps.setInt(1, ni.idYeuCauRoiHoi);
+
+            ResultSet rs = ps.executeQuery();
+
+            if(rs.next()){
+
+                int idHoiVien =
+                        rs.getInt("idHoiVien");
+
+                // cập nhật yêu cầu
+
+                PreparedStatement upd =
+                        conn.prepareStatement(
+
+                    "UPDATE YeuCauRoiHoi " +
+                    "SET trangThai=N'Đã duyệt' " +
+                    "WHERE id=?"
+                );
+
+                upd.setInt(1, ni.idYeuCauRoiHoi);
+
+                upd.executeUpdate();
+
+                // cập nhật hội viên
+
+                PreparedStatement hv =
+                        conn.prepareStatement(
+
+                    "UPDATE HoiVien " +
+                    "SET trangThai=N'Đã rời' " +
+                    "WHERE id=?"
+                );
+
+                hv.setInt(1, idHoiVien);
+
+                hv.executeUpdate();
+
+                JOptionPane.showMessageDialog(
+                        parent,
+                        "Đã duyệt rời hội."
+                );
+            }
+        }
+
+    } catch(Exception e){
+
+        JOptionPane.showMessageDialog(
+                parent,
+                "Lỗi: " + e.getMessage()
+        );
+    }
+}
+
+    private enum NotificationType {
+        REGISTRATION("Đăng ký hoạt động", "📅", "Thông báo đăng ký hoạt động", "Mở ThamGiaForm", new Color(59, 130, 246)),
+        LEAVE_REQUEST("Yêu cầu rời hội", "🚪", "Yêu cầu rời hội", "Duyệt yêu cầu rời hội", new Color(239, 68, 68)),
+        GENERAL("Thông báo chung", "🔔", "Thông báo hệ thống", "", new Color(100, 116, 139));
+        final String displayName, icon, title, actionLabel; final Color accent;
+        NotificationType(String displayName, String icon, String title, String actionLabel, Color accent) {
+            this.displayName = displayName; this.icon = icon; this.title = title; this.actionLabel = actionLabel; this.accent = accent;
+        }
     }
 
     /** Data class cho thông báo */
     private static class NotifItem {
         int id; String noiDung; String thoiGian;
         boolean daDoc; String trangThaiXuLy = "";
+        Integer idDangKyTam; Integer idYeuCauRoiHoi;
     }
 
     // ══════════════════════════════════════════════════════════════════════

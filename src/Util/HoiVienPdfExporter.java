@@ -2,6 +2,8 @@ package Util;
 
 import com.itextpdf.text.*;
 import com.itextpdf.text.pdf.*;
+import com.itextpdf.text.pdf.BaseFont;
+import java.io.IOException;
 
 import javax.imageio.ImageIO;
 import javax.swing.*;
@@ -44,10 +46,28 @@ public class HoiVienPdfExporter {
             writer.setPageEvent(new WatermarkEvent());
             doc.open();
 
-            Font title = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, new BaseColor(25, 85, 166));
-            Font sub = FontFactory.getFont(FontFactory.HELVETICA, 11, BaseColor.GRAY);
-            Font label = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, new BaseColor(52, 73, 94));
-            Font val = FontFactory.getFont(FontFactory.HELVETICA, 11, BaseColor.BLACK);
+//            Font title = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 20, new BaseColor(25, 85, 166));
+//            Font sub = FontFactory.getFont(FontFactory.HELVETICA, 11, BaseColor.GRAY);
+//            Font label = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 11, new BaseColor(52, 73, 94));
+//            Font val = FontFactory.getFont(FontFactory.HELVETICA, 11, BaseColor.BLACK);
+            // Font Unicode tiếng Việt
+            BaseFont bf = BaseFont.createFont(
+                    "src/fonts/arial.ttf",
+                    BaseFont.IDENTITY_H,
+                    BaseFont.EMBEDDED
+            );
+
+            Font title = new Font(bf, 20, Font.BOLD,
+                    new BaseColor(25, 85, 166));
+
+            Font sub = new Font(bf, 11, Font.NORMAL,
+                    BaseColor.GRAY);
+
+            Font label = new Font(bf, 11, Font.BOLD,
+                    new BaseColor(52, 73, 94));
+
+            Font val = new Font(bf, 11, Font.NORMAL,
+                    BaseColor.BLACK);
 
             PdfPTable header = new PdfPTable(new float[]{4.6f, 1.4f});
             header.setWidthPercentage(100);
@@ -154,13 +174,46 @@ public class HoiVienPdfExporter {
     }
 
     private static class WatermarkEvent extends PdfPageEventHelper {
-        @Override
-        public void onEndPage(PdfWriter writer, Document document) {
-            PdfContentByte canvas = writer.getDirectContentUnder();
-            Font font = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 52, new BaseColor(230, 235, 245));
-            Phrase watermark = new Phrase("QUẢN LÝ HỘI VIÊN", font);
-            ColumnText.showTextAligned(canvas, Element.ALIGN_CENTER, watermark,
-                (document.right() + document.left()) / 2, (document.top() + document.bottom()) / 2, 35);
+
+    private Font watermarkFont;
+
+    public WatermarkEvent() {
+        try {
+            BaseFont bf = BaseFont.createFont(
+                    "src/fonts/arial.ttf",
+                    BaseFont.IDENTITY_H,
+                    BaseFont.EMBEDDED
+            );
+
+            watermarkFont = new Font(
+                    bf,
+                    52,
+                    Font.BOLD,
+                    new BaseColor(230, 235, 245)
+            );
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
+
+    @Override
+    public void onEndPage(PdfWriter writer, Document document) {
+        PdfContentByte canvas = writer.getDirectContentUnder();
+
+        Phrase watermark = new Phrase(
+                "QUẢN LÝ HỘI VIÊN",
+                watermarkFont
+        );
+
+        ColumnText.showTextAligned(
+                canvas,
+                Element.ALIGN_CENTER,
+                watermark,
+                (document.right() + document.left()) / 2,
+                (document.top() + document.bottom()) / 2,
+                35
+        );
+    }
+}
 }

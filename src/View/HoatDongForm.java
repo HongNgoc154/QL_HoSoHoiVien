@@ -930,7 +930,9 @@ public class HoatDongForm extends JPanel {
             + "- Người tổ chức : " + str(model.getValueAt(row, 6)) + "\n"
             + "- Địa điểm      : " + str(model.getValueAt(row, 7)) + "\n"
             + "- Mô tả         : " + str(model.getValueAt(row, 8)) + "\n\n"
-            + "Đăng ký tham gia: /tham-gia?hoatDongId=" + model.getValueAt(row, 0)
+            + "Đăng ký tham gia tại:\n"
+            + "http://localhost:8080/tham-gia?hoatDongId="
+            + model.getValueAt(row, 0)
             + "\n\nTrân trọng.";
     }
 
@@ -983,14 +985,32 @@ public class HoatDongForm extends JPanel {
     }
 
     private JSpinner makeDateTimeSpinner() {
-        SpinnerDateModel md = new SpinnerDateModel(new Date(), null, null, java.util.Calendar.MINUTE);
-        JSpinner sp = new JSpinner(md);
-        JSpinner.DateEditor editor = new JSpinner.DateEditor(sp, "dd/MM/yyyy HH:mm");
-        sp.setEditor(editor);
-        editor.getTextField().setEditable(false);
-        sp.setPreferredSize(new Dimension(260, 34));
-        return sp;
-    }
+
+    SpinnerDateModel md =
+        new SpinnerDateModel(new Date(), null, null, java.util.Calendar.MINUTE);
+
+    JSpinner sp = new JSpinner(md);
+
+    JSpinner.DateEditor editor =
+        new JSpinner.DateEditor(sp, "dd/MM/yyyy HH:mm");
+
+    sp.setEditor(editor);
+
+    // cho phép nhập trực tiếp
+    JFormattedTextField txt = editor.getTextField();
+
+    txt.setEditable(true);
+
+    // căn giữa đẹp hơn
+    txt.setHorizontalAlignment(JTextField.CENTER);
+
+    // cho phép focus
+    txt.setFocusable(true);
+
+    sp.setPreferredSize(new Dimension(260, 34));
+
+    return sp;
+}
 
     private void styleFld(JTextField f) { f.setPreferredSize(new Dimension(260, 34)); }
 

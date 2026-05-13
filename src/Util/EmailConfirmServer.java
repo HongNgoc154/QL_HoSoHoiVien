@@ -27,6 +27,7 @@ public class EmailConfirmServer {
             
             HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
             server.createContext("/xacnhan", EmailConfirmServer::handleConfirm);
+            server.createContext("/tham-gia", EmailConfirmServer::handleDangKyHoatDong);
             server.start();
             System.out.println("Server chạy tại http://localhost:8080");
         } catch (Exception e) {
@@ -48,7 +49,375 @@ public class EmailConfirmServer {
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-    }        
+    } 
+    
+    
+    private static void sendHtml(
+        HttpExchange exchange,
+        String html) throws Exception {
+
+    exchange.getResponseHeaders().set(
+            "Content-Type",
+            "text/html;charset=UTF-8"
+    );
+
+    byte[] bytes =
+            html.getBytes(StandardCharsets.UTF_8);
+
+    exchange.sendResponseHeaders(200, bytes.length);
+
+    OutputStream os =
+            exchange.getResponseBody();
+
+    os.write(bytes);
+
+    os.close();
+}
+    
+    private static void handleDangKySubmit(HttpExchange exchange) {
+
+    try {
+
+        String body = new String(
+                exchange.getRequestBody().readAllBytes(),
+                StandardCharsets.UTF_8
+        );
+
+        String maHoiVien = "";
+        int idHoatDong = 0;
+
+        for (String pair : body.split("&")) {
+
+            String[] kv = pair.split("=");
+
+            if (kv.length != 2) continue;
+
+            String key =
+                    URLDecoder.decode(kv[0], "UTF-8");
+
+            String val =
+                    URLDecoder.decode(kv[1], "UTF-8");
+
+            switch (key) {
+
+                case "maHoiVien" ->
+                        maHoiVien = val;
+
+                case "idHoatDong" ->
+                        idHoatDong = Integer.parseInt(val);
+            }
+        }
+
+        try (Connection conn =
+                     DatabaseHelper.getConnection()) {
+
+            // tìm hội viên
+
+            PreparedStatement hv =
+                    conn.prepareStatement(
+                            "SELECT * FROM HoiVien " +
+                            "WHERE maHoiVien=?"
+                    );
+
+            hv.setString(1, maHoiVien);
+
+            ResultSet rs = hv.executeQuery();
+
+            if (!rs.next()) {
+
+                sendHtml(exchange,
+                        """
+                        <html>
+                        <meta charset='utf-8'>
+                        <body style='font-family:Segoe UI;padding:40px'>
+                        <h2>❌ Mã hội viên không tồn tại</h2>
+                        </body>
+                        </html>
+                        """);
+
+                return;
+            }
+
+            int idHoiVien = rs.getInt("id");
+
+            String tenHoiVien =
+                    rs.getString("tenHoiVien");
+
+            // chống đăng ký trùng
+
+            PreparedStatement chk =
+                    conn.prepareStatement(
+                            "SELECT COUNT(*) " +
+                            "FROM DangKyTam " +
+                            "WHERE idHoiVien=? " +
+                            "AND idHoatDong=?"
+                    );
+
+            chk.setInt(1, idHoiVien);
+
+            chk.setInt(2, idHoatDong);
+
+            ResultSet rsChk = chk.executeQuery();
+
+            rsChk.next();
+
+            if (rsChk.getInt(1) > 0) {
+
+                sendHtml(exchange,
+                        """
+                        <html>
+                        <meta charset='utf-8'>
+                        <body style='font-family:Segoe UI;padding:40px'>
+                        <h2>⚠️ Bạn đã đăng ký hoạt động này trước đó</h2>
+                        </body>
+                        </html>
+                        """);
+
+                return;
+            }
+
+            // lưu đăng ký tạm
+
+            PreparedStatement ps =
+                    conn.prepareStatement(
+                            "INSERT INTO DangKyTam(" +
+                            "idHoiVien," +
+                            "idHoatDong," +
+                            "maHoiVien," +
+                            "trangThai" +
+                            ") VALUES(?,?,?,N'Chờ duyệt')"
+                    );
+
+            ps.setInt(1, idHoiVien);
+
+            ps.setInt(2, idHoatDong);
+
+            ps.setString(3, maHoiVien);
+
+            ps.executeUpdate();
+
+            // tạo thông báo
+
+            PreparedStatement tb =
+                    conn.prepareStatement(
+                            "INSERT INTO ThongBao(" +
+                            "noiDung,idDangKyTam,daDoc,thoiGian" +
+                            ") VALUES(?,IDENT_CURRENT('DangKyTam'),0,GETDATE())"
+                    );
+
+            tb.setString(
+                    1,
+                    "Hội viên "
+                            + tenHoiVien
+                            + " đăng ký tham gia hoạt động"
+            );
+
+            tb.executeUpdate();
+
+            sendHtml(exchange,
+                    """
+                    <html>
+                    <meta charset='utf-8'>
+
+                    <body style='font-family:Segoe UI;
+                                 background:#f4f7fc;
+                                 padding:40px'>
+
+                    <div style='max-width:600px;
+                                margin:auto;
+                                background:white;
+                                padding:32px;
+                                border-radius:16px'>
+
+                    <h1 style='color:#16a34a'>
+                        ✅ Đăng ký thành công
+                    </h1>
+
+                    <p>
+                        Yêu cầu đăng ký đã được gửi.
+                    </p>
+
+                    <p>
+                        Vui lòng chờ nhân viên xét duyệt.
+                    </p>
+
+                    </div>
+
+                    </body>
+                    </html>
+                    """);
+
+        }
+
+    } catch (Exception e) {
+
+        e.printStackTrace();
+    }
+}
+    
+    private static void handleDangKyHoatDong(HttpExchange exchange) {
+
+    String query = exchange.getRequestURI().getQuery();
+
+    String idStr = "";
+    
+    if ("POST".equalsIgnoreCase(exchange.getRequestMethod())) {
+        handleDangKySubmit(exchange);
+        return;
+    }
+
+    if (query != null && query.contains("hoatDongId=")) {
+
+        for (String pair : query.split("&")) {
+
+            String[] kv = pair.split("=");
+
+            if (kv.length == 2 && kv[0].equals("hoatDongId")) {
+                idStr = kv[1];
+            }
+        }
+    }
+
+    String html;
+
+    try (Connection conn = DatabaseHelper.getConnection()) {
+
+        PreparedStatement ps =
+                conn.prepareStatement(
+                        "SELECT * FROM HoatDong WHERE id=?"
+                );
+
+        ps.setInt(1, Integer.parseInt(idStr));
+
+        ResultSet rs = ps.executeQuery();
+
+        if (!rs.next()) {
+
+            html = """
+                <html>
+                <meta charset='utf-8'>
+                <body style='font-family:Segoe UI;padding:40px'>
+                <h2>❌ Không tìm thấy hoạt động</h2>
+                </body>
+                </html>
+            """;
+
+        } else {
+
+            String ten = rs.getString("tenHoatDong");
+
+            String loai = rs.getString("loaiHoatDong");
+
+            String diaDiem = rs.getString("diaDiem");
+
+            html =
+                "<html>" +
+                "<meta charset='utf-8'>" +
+
+                "<body style='font-family:Segoe UI;" +
+                "background:#f4f7fc;" +
+                "padding:40px'>" +
+
+                "<div style='max-width:700px;" +
+                "margin:auto;" +
+                "background:white;" +
+                "border-radius:16px;" +
+                "padding:32px;" +
+                "box-shadow:0 8px 24px rgba(0,0,0,.1)'>" +
+
+                "<h1 style='color:#1359B9'>" +
+                "📋 Đăng ký tham gia hoạt động" +
+                "</h1>" +
+
+                "<p><b>Tên hoạt động:</b> " + ten + "</p>" +
+
+                "<p><b>Loại:</b> " + loai + "</p>" +
+
+                "<p><b>Địa điểm:</b> " + diaDiem + "</p>" +
+
+                "<div style='margin-top:24px;" +
+                "padding:18px;" +
+                "background:#EEF4FF;" +
+                "border-radius:12px;" +
+                "color:#1359B9;" +
+                "font-weight:600'>" +
+
+                "<form method='post'>" +
+
+                "<input type='hidden' name='idHoatDong' value='" + idStr + "'>" +
+
+                "<div style='margin-top:20px'>" +
+
+                "<label>Mã hội viên</label><br>" +
+
+                "<input name='maHoiVien' required " +
+                "style='width:100%;padding:10px'>" +
+
+                "</div>" +
+
+                "<button type='submit' " +
+
+                "style='margin-top:24px;" +
+                "background:#1359B9;" +
+                "color:white;" +
+                "border:none;" +
+                "padding:14px 24px;" +
+                "border-radius:10px;" +
+                "font-size:16px;" +
+                "cursor:pointer'>" +
+
+                "📌 Đăng ký tham gia"
+
+                +"</button>" +
+
+                "</form>" +
+                "hoặc đăng nhập hệ thống để hoàn tất đăng ký." +
+
+                "</div>" +
+
+                "</div>" +
+
+                "</body>" +
+                "</html>";
+            
+        }
+
+    } catch (Exception e) {
+
+        html = """
+            <html>
+            <meta charset='utf-8'>
+            <body style='font-family:Segoe UI;padding:40px'>
+            <h2>❌ Lỗi xử lý đăng ký</h2>
+            <p>
+        """ + e.getMessage() + """
+            </p>
+            </body>
+            </html>
+        """;
+    }
+
+    try {
+
+        exchange.getResponseHeaders().set(
+                "Content-Type",
+                "text/html; charset=UTF-8"
+        );
+
+        byte[] bytes = html.getBytes(StandardCharsets.UTF_8);
+
+        exchange.sendResponseHeaders(200, bytes.length);
+
+        OutputStream os = exchange.getResponseBody();
+
+        os.write(bytes);
+
+        os.close();
+
+    } catch (Exception ex) {
+        ex.printStackTrace();
+    }
+}
 
     private static String getToken(HttpExchange exchange) {
         String query = exchange.getRequestURI().getQuery();
