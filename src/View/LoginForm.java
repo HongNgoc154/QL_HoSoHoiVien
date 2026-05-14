@@ -287,10 +287,13 @@ public class LoginForm extends JFrame {
             @Override protected void done() {
                 try {
                     if (get()) {
-                        lblError.setText("  ✅  Đăng nhập thành công!");
-                        lblError.setForeground(UITheme.SUCCESS);
+                        showToast(
+                                "✔ Đăng nhập thành công!",
+                                new Color(22, 163, 74)
+);
                         Timer t = new Timer(400, ev -> {
                             dispose();
+
                             new MainForm().setVisible(true);
                         });
                         t.setRepeats(false); t.start();
@@ -328,6 +331,59 @@ public class LoginForm extends JFrame {
         });
         t.start();
     }
+    
+    private void showToast(String message, Color bgColor) {
+
+    JWindow toast = new JWindow();
+
+    JPanel panel = new JPanel(new BorderLayout());
+
+    panel.setBackground(bgColor);
+
+    panel.setBorder(BorderFactory.createCompoundBorder(
+            BorderFactory.createLineBorder(
+                    bgColor.darker(), 1),
+            BorderFactory.createEmptyBorder(12, 20, 12, 20)
+    ));
+
+    JLabel lbl = new JLabel(message);
+
+    lbl.setForeground(Color.WHITE);
+
+    lbl.setFont(new Font("Segoe UI", Font.BOLD, 14));
+
+    panel.add(lbl, BorderLayout.CENTER);
+
+    toast.add(panel);
+
+    toast.pack();
+
+    // vị trí góc phải dưới
+    Dimension screen =
+            Toolkit.getDefaultToolkit().getScreenSize();
+
+    int x = screen.width - toast.getWidth() - 30;
+
+    int y = screen.height - toast.getHeight() - 50;
+
+    toast.setLocation(x, y);
+
+    toast.setAlwaysOnTop(true);
+
+    toast.setVisible(true);
+
+    // tự đóng sau 2 giây
+    Timer timer = new Timer(2000, e -> {
+
+        toast.setVisible(false);
+
+        toast.dispose();
+    });
+
+    timer.setRepeats(false);
+
+    timer.start();
+}
 
     private void addDragToMove(JPanel root) {
         final Point[] dragStart = {null};

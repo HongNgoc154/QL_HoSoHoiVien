@@ -49,4 +49,35 @@ public class EmailSender {
             e.printStackTrace();
         }
     }
+    
+
+    public static void sendHtml(String to, String subject, String htmlContent) {
+        final String from = "lhngocc1304@gmail.com";
+        final String password = "dyyj uxas daxj axsj";
+
+        Properties props = new Properties();
+        props.put("mail.smtp.host", "smtp.gmail.com");
+        props.put("mail.smtp.port", "587");
+        props.put("mail.smtp.auth", "true");
+        props.put("mail.smtp.starttls.enable", "true");
+
+        Session session = Session.getInstance(props,
+            new Authenticator() {
+                protected PasswordAuthentication getPasswordAuthentication() {
+                    return new PasswordAuthentication(from, password);
+                }
+            });
+
+        try {
+            Message message = new MimeMessage(session);
+            message.setFrom(new InternetAddress(from));
+            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(to));
+            message.setSubject(subject);
+            message.setContent(htmlContent, "text/html; charset=UTF-8");
+            Transport.send(message);
+            System.out.println("Đã gửi HTML: " + to);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
 }

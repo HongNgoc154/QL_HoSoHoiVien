@@ -15,6 +15,7 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.sql.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -360,6 +361,7 @@ public class HoiVienForm extends JPanel {
         btns.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, UITheme.BORDER_COLOR));
 
         JButton btnLeave = UITheme.dangerButton("Yêu cầu rời hội");
+        JButton btnRestore = UITheme.primaryButton("Khôi phục hội viên");
         JButton btnPdf   = UITheme.outlineButton("📄  Xuất PDF");
         JButton btnEdit2 = UITheme.outlineButton("✏  Chỉnh sửa");
         JButton btnClose = UITheme.primaryButton("Đóng");
@@ -367,8 +369,11 @@ public class HoiVienForm extends JPanel {
         btnPdf  .setPreferredSize(new Dimension(110, 34));
         btnEdit2.setPreferredSize(new Dimension(110, 34));
         btnClose.setPreferredSize(new Dimension(90,  34));
+        btnRestore.setPreferredSize(new Dimension(170, 34));
+        btnRestore.setVisible("Đã rời".equalsIgnoreCase(tt));
 
         btns.add(btnLeave);
+        btns.add(btnRestore);
         btns.add(btnPdf);
         btns.add(btnEdit2);
         btns.add(btnClose);
@@ -385,6 +390,8 @@ public class HoiVienForm extends JPanel {
         btnEdit2.addActionListener(e -> { dlg.dispose(); openForm(row); });
         btnLeave.addActionListener(e -> openLeaveRequestDialog(
             (int) model.getValueAt(row, COL_ID), ma, ten, email, dlg));
+         btnRestore.addActionListener(e -> openRestoreRequestDialog(
+            (int) model.getValueAt(row, COL_ID), ma, ten, email, ngayTG, tt, dlg));
         btnPdf.addActionListener(e -> {
             HoiVienPdfExporter.MemberProfileData data = new HoiVienPdfExporter.MemberProfileData();
             data.maHoiVien  = ma;       data.tenHoiVien = ten;
@@ -558,6 +565,22 @@ public class HoiVienForm extends JPanel {
             String ngaySinhSql = ValidationHelper.toSqlDate(ngaySinh);
             try (Connection conn = DatabaseHelper.getConnection()) {
                 if (!isEdit) {
+                    DuplicateHoiVienInfo duplicate = findDuplicateHoiVien(conn, maHV, email, sdt);
+                    if (duplicate != null) {
+                        String message = "Hội viên này đã tồn tại trên hệ thống.";
+                        if ("Đã rời".equalsIgnoreCase(duplicate.trangThai)) {
+                            int choice = JOptionPane.showConfirmDialog(dlg,
+                                message + "\nHội viên này đã rời hội. Bạn có muốn khôi phục hội viên không?",
+                                "Trùng thông tin hội viên", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+                            if (choice == JOptionPane.YES_OPTION) {
+                                openRestoreRequestDialog(duplicate.id, duplicate.maHoiVien, duplicate.tenHoiVien,
+                                    duplicate.email, duplicate.ngayThamGia, duplicate.trangThai, dlg);
+                            }
+                        } else {
+                            JOptionPane.showMessageDialog(dlg, message, "Trùng dữ liệu", JOptionPane.WARNING_MESSAGE);
+                        }
+                        return;
+                    }
                     PreparedStatement ps = conn.prepareStatement(
                         "INSERT INTO HoiVien(maHoiVien,tenHoiVien,ngaySinh,gioiTinh," +
                         "sdt,email,diaChi,hinhAnh,trangThai) VALUES(?,?,?,?,?,?,?,?,?)");
@@ -734,6 +757,84 @@ public class HoiVienForm extends JPanel {
     //  HELPERS
     // ══════════════════════════════════════════════════════════════════════
 
+    private static class DuplicateHoiVienInfo {
+        int id;
+        String maHoiVien, tenHoiVien, email, trangThai, ngayThamGia;
+    }
+
+    private DuplicateHoiVienInfo findDuplicateHoiVien(Connection conn, String maHV, String email, String sdt) throws SQLException {
+        String sql = "SELECT TOP 1 id, maHoiVien, tenHoiVien, email, trangThai, "
+            + "CONVERT(varchar(10), ngayThamGia, 120) AS ngayThamGia "
+            + "FROM HoiVien WHERE maHoiVien=? OR email=? OR sdt=? ORDER BY id DESC";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, maHV);
+            ps.setString(2, email);
+            ps.setString(3, sdt);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                DuplicateHoiVienInfo d = new DuplicateHoiVienInfo();
+                d.id = rs.getInt("id");
+                d.maHoiVien = rs.getString("maHoiVien");
+                d.tenHoiVien = rs.getString("tenHoiVien");
+                d.email = rs.getString("email");
+                d.trangThai = rs.getString("trangThai");
+                d.ngayThamGia = rs.getString("ngayThamGia");
+                return d;
+            }
+        }
+        return null;
+    }
+
+    private void openRestoreRequestDialog(int idHoiVien, String maHV, String tenHV, String emailHV,
+                                          String ngayThamGiaCu, String trangThai, JDialog parent) {
+        if (!"Đã rời".equalsIgnoreCase(trangThai)) {
+            JOptionPane.showMessageDialog(this, "Chỉ khôi phục được hội viên ở trạng thái \"Đã rời\".");
+            return;
+        }
+        String token = UUID.randomUUID().toString() + "-" + System.currentTimeMillis();
+        try (Connection conn = DatabaseHelper.getConnection()) {
+            PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO YeuCauKhoiPhucHoiVien(idHoiVien,trangThai,token,thoiGianTao,noiDung) "
+                    + "VALUES(?,N'Chờ xác nhận',?,GETDATE(),?)");
+            ps.setInt(1, idHoiVien);
+            ps.setString(2, token);
+            ps.setString(3, "Yêu cầu khôi phục hội viên " + maHV);
+            ps.executeUpdate();
+            NhatKyDAO.log(Session.getCurrentUserId(), "THÊM", "YeuCauKhoiPhucHoiVien",
+                "Tạo yêu cầu khôi phục hội viên " + maHV);
+
+            if (emailHV != null && !emailHV.trim().isEmpty()) {
+                String link = "http://localhost:8080/xac-nhan-khoi-phuc?token=" + token;
+                EmailSender.sendHtml(emailHV, "Xác nhận khôi phục hội viên",
+                    buildRestoreConfirmEmailHtml(maHV, tenHV, emailHV, ngayThamGiaCu, LocalDate.now().toString(), link));
+            }
+            JOptionPane.showMessageDialog(this, "Đã tạo yêu cầu khôi phục hội viên.");
+            if (parent != null) parent.dispose();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Lỗi khi tạo yêu cầu khôi phục: " + ex.getMessage());
+        }
+    }
+
+    private String buildRestoreConfirmEmailHtml(String ma, String ten, String email, String ngayThamGiaCu,
+                                                String ngayRoi, String link) {
+        return "<div style='font-family:Segoe UI,Arial,sans-serif;background:#f8fafc;padding:20px'>"
+            + "<div style='max-width:700px;margin:auto;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:24px'>"
+            + "<h2 style='margin-top:0;color:#1e3a8a'>Phiếu xác nhận khôi phục hội viên</h2>"
+            + "<p>Vui lòng kiểm tra thông tin và xác nhận quay lại hoạt động.</p>"
+            + "<table style='width:100%;border-collapse:collapse'>"
+            + htmlRow("Mã hội viên", ma) + htmlRow("Tên hội viên", ten) + htmlRow("Email", email)
+            + htmlRow("Ngày tham gia cũ", ngayThamGiaCu) + htmlRow("Ngày rời hội", ngayRoi)
+            + "</table>"
+            + "<p style='margin-top:16px'><a href='" + link + "' style='padding:10px 16px;background:#2563eb;color:#fff;"
+            + "text-decoration:none;border-radius:8px;font-weight:600'>Xác nhận khôi phục</a></p></div></div>";
+    }
+
+    private String htmlRow(String key, String value) {
+        return "<tr><td style='padding:8px;border-bottom:1px solid #e5e7eb;width:180px'><b>" + key + "</b></td>"
+            + "<td style='padding:8px;border-bottom:1px solid #e5e7eb'>" + (value == null ? "—" : value) + "</td></tr>";
+    }
+    
+    
     /** Avatar panel: hiển thị ảnh hoặc chữ cái đầu tên */
     private JPanel createAvatarPanel(String name, String imageUrl, int width, int height) {
         JPanel panel = new JPanel(new BorderLayout());

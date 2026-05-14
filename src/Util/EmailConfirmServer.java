@@ -28,6 +28,10 @@ public class EmailConfirmServer {
             HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
             server.createContext("/xacnhan", EmailConfirmServer::handleConfirm);
             server.createContext("/tham-gia", EmailConfirmServer::handleDangKyHoatDong);
+            server.createContext(
+                "/xac-nhan-khoi-phuc",
+                EmailConfirmServer::handleConfirmKhoiPhuc
+);
             server.start();
             System.out.println("Server chạy tại http://localhost:8080");
         } catch (Exception e) {
@@ -50,6 +54,189 @@ public class EmailConfirmServer {
             ex.printStackTrace();
         }
     } 
+    
+    private static void handleConfirmKhoiPhuc(
+        HttpExchange exchange) {
+
+    try {
+
+        String query =
+                exchange.getRequestURI()
+                        .getQuery();
+
+        String token = "";
+
+        if (query != null &&
+            query.startsWith("token=")) {
+
+            token = query.substring(6);
+        }
+
+        try (Connection conn =
+                     DatabaseHelper.getConnection()) {
+
+            // tìm yêu cầu khôi phục
+
+            PreparedStatement ps =
+                    conn.prepareStatement(
+
+                "SELECT * " +
+                "FROM YeuCauKhoiPhucHoiVien " +
+                "WHERE token=?"
+            );
+
+            ps.setString(1, token);
+
+            ResultSet rs = ps.executeQuery();
+
+            // token sai
+
+            if (!rs.next()) {
+
+                sendHtml(
+                    exchange,
+
+                    "<html>" +
+                    "<meta charset='utf-8'>" +
+
+                    "<body style='font-family:Segoe UI;" +
+                    "padding:40px'>" +
+
+                    "<h2 style='color:red'>" +
+
+                    "❌ Link xác nhận không hợp lệ"
+
+                    + "</h2>" +
+
+                    "</body></html>"
+                );
+
+                return;
+            }
+
+            int idYeuCau =
+                    rs.getInt("id");
+
+            int idHoiVien =
+                    rs.getInt("idHoiVien");
+
+            // cập nhật trạng thái xác nhận
+
+            PreparedStatement upd =
+                    conn.prepareStatement(
+
+                "UPDATE YeuCauKhoiPhucHoiVien " +
+
+                "SET trangThai=N'Đã xác nhận'," +
+
+                "thoiGianXacNhan=GETDATE() " +
+
+                "WHERE id=?"
+            );
+
+            upd.setInt(1, idYeuCau);
+
+            upd.executeUpdate();
+
+            // lấy tên hội viên
+
+            PreparedStatement hv =
+                    conn.prepareStatement(
+
+                "SELECT tenHoiVien " +
+                "FROM HoiVien WHERE id=?"
+            );
+
+            hv.setInt(1, idHoiVien);
+
+            ResultSet rsHv =
+                    hv.executeQuery();
+
+            String tenHoiVien = "";
+
+            if (rsHv.next()) {
+
+                tenHoiVien =
+                        rsHv.getString("tenHoiVien");
+            }
+
+            // tạo thông báo cho nhân viên
+
+            PreparedStatement tb =
+                    conn.prepareStatement(
+
+                "INSERT INTO ThongBao(" +
+                "noiDung," +
+                "thoiGian," +
+                "daDoc," +
+                "idKhoiPhucHoiVien" +
+                ") VALUES(?,GETDATE(),0,?)"
+            );
+
+            tb.setString(
+                1,
+                "Hội viên "
+                + tenHoiVien
+                + " đã xác nhận yêu cầu khôi phục hội viên."
+            );
+
+            tb.setInt(2, idYeuCau);
+
+            tb.executeUpdate();
+
+            // trả HTML thành công
+
+            sendHtml(
+                exchange,
+
+                "<html>" +
+
+                "<meta charset='utf-8'>" +
+
+                "<body style='font-family:Segoe UI;" +
+                "background:#f4f7fc;" +
+                "padding:40px'>" +
+
+                "<div style='max-width:700px;" +
+                "margin:auto;" +
+                "background:white;" +
+                "padding:32px;" +
+                "border-radius:16px;" +
+                "box-shadow:0 8px 24px rgba(0,0,0,.1)'>" +
+
+                "<h1 style='color:#16a34a'>" +
+
+                "✅ Đã xác nhận khôi phục"
+
+                + "</h1>" +
+
+                "<p>" +
+
+                "Yêu cầu khôi phục hội viên của bạn " +
+                "đã được gửi đến nhân viên xét duyệt."
+
+                + "</p>" +
+
+                "<p>" +
+
+                "Vui lòng chờ xác nhận từ hệ thống."
+
+                + "</p>" +
+
+                "</div>" +
+
+                "</body></html>"
+            );
+        }
+
+    } catch (Exception e) {
+
+        e.printStackTrace();
+    }
+}
+    
+    
+    
     
     
     private static void sendHtml(

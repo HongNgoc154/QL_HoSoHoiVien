@@ -1,6 +1,7 @@
 package View;
 
 import Util.UITheme;
+import Util.EmailSender;
 import database.DatabaseHelper;
 
 import javax.swing.*;
@@ -1232,7 +1233,7 @@ public class DashboardPanel extends JPanel {
         List<NotifItem> allNotifs = new ArrayList<>();
         try (Connection conn = connGetter.get()) {
             if (conn == null) throw new Exception("No connection");
-            String sql = "SELECT tb.id, tb.noiDung, tb.thoiGian, tb.daDoc, tb.idDangKyTam, tb.idYeuCauRoiHoi, "
+            String sql = "SELECT tb.id, tb.noiDung, tb.thoiGian, tb.daDoc, tb.idDangKyTam, tb.idYeuCauRoiHoi, tb.idKhoiPhucHoiVien,"
                 + "ISNULL(dkt.trangThai,'') trangThaiDKT, "
                 + "ISNULL(ycr.trangThai,'') trangThaiYCR "
                 + "FROM ThongBao tb "
@@ -1249,6 +1250,10 @@ public class DashboardPanel extends JPanel {
                     ni.daDoc     = rs.getBoolean("daDoc");
                     ni.idDangKyTam = rs.getObject("idDangKyTam") != null ? rs.getInt("idDangKyTam") : null;
                     ni.idYeuCauRoiHoi = rs.getObject("idYeuCauRoiHoi") != null ? rs.getInt("idYeuCauRoiHoi") : null;
+                    ni.idKhoiPhucHoiVien =
+                        rs.getObject("idKhoiPhucHoiVien") != null
+                        ? rs.getInt("idKhoiPhucHoiVien")
+                        : null;
                     String ttDKT = rs.getString("trangThaiDKT");
                     String ttYCR = rs.getString("trangThaiYCR");
                     // Xác định trạng thái xử lý
@@ -1421,7 +1426,21 @@ public class DashboardPanel extends JPanel {
                         if (bellBtn!=null) bellBtn.repaint();
                     } catch (Exception ignored) {}
                 }
-                showNotificationDetail(dlg.getOwner(), ni, connGetter, bellBtn, () -> { if (bellBtn!=null) bellBtn.repaint(); });
+                dlg.setVisible(false);
+
+                showNotificationDetail(
+                        dlg,
+                        ni,
+                        connGetter,
+                        bellBtn,
+                        () -> {
+
+                            if (bellBtn != null)
+                                bellBtn.repaint();
+
+                            dlg.setVisible(true);
+                        }
+                );
             }
         });
         return cell;
@@ -1539,7 +1558,14 @@ public class DashboardPanel extends JPanel {
         btnClose.setFont(new Font("Segoe UI", Font.BOLD, 14));
         btnClose.setForeground(Color.WHITE);
         btnClose.setOpaque(false); btnClose.setContentAreaFilled(false); btnClose.setBorderPainted(false);
-        btnClose.addActionListener(e -> detail.dispose());
+        btnClose.addActionListener(e -> {
+
+        detail.dispose();
+
+        if(owner != null){
+            owner.setVisible(true);
+        }
+    });
         header.add(title, BorderLayout.WEST);
         header.add(btnClose, BorderLayout.EAST);
 
@@ -1573,6 +1599,13 @@ public class DashboardPanel extends JPanel {
                 detail,
                 ni
         );
+
+        detail.dispose();
+
+        if(owner != null){
+            owner.setVisible(true);
+        }
+    });
         
         btnReject.addActionListener(e -> {
 
@@ -1582,33 +1615,34 @@ public class DashboardPanel extends JPanel {
         );
 
         detail.dispose();
-    });
 
-        detail.dispose();
+        if(owner != null){
+            owner.setVisible(true);
+        }
     });
         foot.setOpaque(false);
-        JButton actionBtn = new JButton(type.actionLabel);
-        actionBtn.setVisible(type != NotificationType.GENERAL);
-        actionBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        actionBtn.setBackground(baseColor); actionBtn.setForeground(Color.WHITE);
-        actionBtn.setBorderPainted(false); actionBtn.setFocusPainted(false);
-        actionBtn.addActionListener(e -> {
+//        JButton actionBtn = new JButton(type.actionLabel);
+//        actionBtn.setVisible(type != NotificationType.GENERAL);
+//        actionBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+//        actionBtn.setBackground(baseColor); actionBtn.setForeground(Color.WHITE);
+//        actionBtn.setBorderPainted(false); actionBtn.setFocusPainted(false);
+//        actionBtn.addActionListener(e -> {
+//
+//        handleApproveNotification(
+//                detail,
+//                ni
+//        );
+//
+//        detail.dispose();
+//    });
+//        JButton closeBtn = new JButton("Đóng");
+//        closeBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
+//        closeBtn.addActionListener(e -> detail.dispose());
+          foot.add(btnApprove);
+          foot.add(btnReject);
 
-        handleApproveNotification(
-                detail,
-                ni
-        );
-
-        detail.dispose();
-    });
-        JButton closeBtn = new JButton("Đóng");
-        closeBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
-        closeBtn.addActionListener(e -> detail.dispose());
-        foot.add(btnApprove);
-        foot.add(btnReject);
-
-        foot.add(actionBtn);
-        foot.add(closeBtn);
+//        foot.add(actionBtn);
+//        foot.add(closeBtn);
 
         shell.add(header, BorderLayout.NORTH);
         shell.add(content, BorderLayout.CENTER);
@@ -1770,13 +1804,136 @@ public class DashboardPanel extends JPanel {
                 hv.setInt(1, idHoiVien);
 
                 hv.executeUpdate();
+                
+                // gửi email thông báo hội viên
+                PreparedStatement psEmail = conn.prepareStatement(
+                    "SELECT hoTen,email FROM HoiVien WHERE id=?"
+                );
+                psEmail.setInt(1, idHoiVien);
+                ResultSet rsEmail = psEmail.executeQuery();
+                if (rsEmail.next()) {
+                    String ten = rsEmail.getString("hoTen");
+                    String email = rsEmail.getString("email");
+                    if (email != null && !email.isBlank()) {
+                        String body = String.format(
+                            "Xin chào %s,\n\nYêu cầu rời hội của bạn đã được duyệt thành công.\n" +
+                            "Trạng thái hội viên hiện tại: Đã rời.\n\nTrân trọng,\nHệ thống quản lý hội viên.",
+                            ten == null ? "hội viên" : ten
+                        );
+                        EmailSender.send(email, "Thông báo duyệt rời hội", body);
+                    }
+                }
 
                 JOptionPane.showMessageDialog(
                         parent,
-                        "Đã duyệt rời hội."
+                        "Đã duyệt rời hội và gửi email thông báo cho hội viên."
                 );
             }
         }
+        
+        // =========================
+// DUYỆT KHÔI PHỤC HỘI VIÊN
+// =========================
+
+if(ni.idKhoiPhucHoiVien != null){
+
+    PreparedStatement ps =
+        conn.prepareStatement(
+
+        "SELECT y.*, h.email, h.tenHoiVien " +
+
+        "FROM YeuCauKhoiPhucHoiVien y " +
+
+        "JOIN HoiVien h ON y.idHoiVien = h.id " +
+
+        "WHERE y.id=?"
+    );
+
+    ps.setInt(1, ni.idKhoiPhucHoiVien);
+
+    ResultSet rs = ps.executeQuery();
+
+    if(rs.next()){
+
+        int idHoiVien =
+            rs.getInt("idHoiVien");
+
+        String email =
+            rs.getString("email");
+
+        String tenHoiVien =
+            rs.getString("tenHoiVien");
+
+        // cập nhật yêu cầu
+
+        PreparedStatement upd =
+            conn.prepareStatement(
+
+            "UPDATE YeuCauKhoiPhucHoiVien " +
+
+            "SET trangThai=N'Đã duyệt' " +
+
+            "WHERE id=?"
+        );
+
+        upd.setInt(
+            1,
+            ni.idKhoiPhucHoiVien
+        );
+
+        upd.executeUpdate();
+
+        // cập nhật hội viên
+
+        PreparedStatement hv =
+            conn.prepareStatement(
+
+            "UPDATE HoiVien " +
+
+            "SET trangThai=N'Hoạt động', " +
+
+            "ngayRoi=NULL " +
+
+            "WHERE id=?"
+        );
+
+        hv.setInt(1, idHoiVien);
+
+        hv.executeUpdate();
+
+        // gửi email
+
+        String body =
+
+            "Xin chào " + tenHoiVien + ",\n\n" +
+
+            "Yêu cầu khôi phục hội viên của bạn " +
+
+            "đã được duyệt thành công.\n\n" +
+
+            "Tài khoản của bạn hiện đã được " +
+
+            "kích hoạt lại.\n\n" +
+
+            "Trân trọng,\n" +
+
+            "Hệ thống quản lý hội viên.";
+
+        EmailSender.send(
+
+            email,
+
+            "Khôi phục hội viên thành công",
+
+            body
+        );
+
+        JOptionPane.showMessageDialog(
+            parent,
+            "Đã khôi phục hội viên thành công."
+        );
+    }
+}
 
     } catch(Exception e){
 
@@ -1799,10 +1956,23 @@ public class DashboardPanel extends JPanel {
 
     /** Data class cho thông báo */
     private static class NotifItem {
-        int id; String noiDung; String thoiGian;
-        boolean daDoc; String trangThaiXuLy = "";
-        Integer idDangKyTam; Integer idYeuCauRoiHoi;
-    }
+
+    int id;
+
+    String noiDung;
+
+    String thoiGian;
+
+    boolean daDoc;
+
+    String trangThaiXuLy = "";
+
+    Integer idDangKyTam;
+
+    Integer idYeuCauRoiHoi;
+
+    Integer idKhoiPhucHoiVien;
+}
 
     // ══════════════════════════════════════════════════════════════════════
     //  EXPORT EXCEL – đúng kỳ lọc, đa sheet, header màu căn giữa
