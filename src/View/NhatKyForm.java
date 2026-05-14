@@ -9,6 +9,7 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.sql.*;
+import javax.swing.JTabbedPane;
 
 /**
  * NhatKyForm – Nhật ký hệ thống.
@@ -20,6 +21,7 @@ public class NhatKyForm extends JPanel {
     private DefaultTableModel model;
     private JSpinner fromDate;
     private JSpinner toDate;
+    private JTabbedPane tabs;
 
     public NhatKyForm() {
         setLayout(new BorderLayout(0, 0));
@@ -39,23 +41,71 @@ public class NhatKyForm extends JPanel {
         add(header, BorderLayout.NORTH);
 
         // ── CENTER ────────────────────────────────────────────────────────
-        JPanel center = new JPanel(new BorderLayout(0, 10));
+        JPanel center = new JPanel(new BorderLayout());
         center.setOpaque(false);
 
+        tabs = new JTabbedPane();
+
+
+        // ======================
+        // TAB NHẬT KÝ
+        // ======================
+
+        JPanel logPanel = new JPanel(new BorderLayout(0, 10));
+        logPanel.setOpaque(false);
+
         // Filter card
-        JPanel filterCard = UITheme.cardPanel(new BorderLayout());
-        filterCard.setBorder(new EmptyBorder(10, 14, 10, 14));
-        filterCard.add(buildFilterBar(), BorderLayout.CENTER);
-        center.add(filterCard, BorderLayout.NORTH);
+        JPanel filterCard =
+                UITheme.cardPanel(new BorderLayout());
+
+        filterCard.setBorder(
+                new EmptyBorder(10, 14, 10, 14));
+
+        filterCard.add(
+                buildFilterBar(),
+                BorderLayout.CENTER
+        );
+
+        logPanel.add(filterCard, BorderLayout.NORTH);
 
         // Table card
-        JPanel tableCard = UITheme.cardPanel(new BorderLayout());
-        tableCard.add(buildTableHeader(), BorderLayout.NORTH);
-        tableCard.add(UITheme.styledScrollPane(buildTable()), BorderLayout.CENTER);
-        center.add(tableCard, BorderLayout.CENTER);
+        JPanel tableCard =
+                UITheme.cardPanel(new BorderLayout());
+
+        tableCard.add(
+                buildTableHeader(),
+                BorderLayout.NORTH
+        );
+
+        tableCard.add(
+                UITheme.styledScrollPane(buildTable()),
+                BorderLayout.CENTER
+        );
+
+        logPanel.add(tableCard, BorderLayout.CENTER);
+
+
+        // ======================
+        // TAB KHO LƯU TRỮ
+        // ======================
+
+        ArchiveForm archiveForm =
+                new ArchiveForm();
+
+        tabs.addTab(
+                "Danh sách nhật ký",
+                logPanel
+        );
+
+        tabs.addTab(
+                "Kho lưu trữ",
+                archiveForm
+        );
+
+        center.add(tabs, BorderLayout.CENTER);
 
         add(center, BorderLayout.CENTER);
-    }
+            }
 
     // ── FILTER BAR ────────────────────────────────────────────────────────
     private JPanel buildFilterBar() {

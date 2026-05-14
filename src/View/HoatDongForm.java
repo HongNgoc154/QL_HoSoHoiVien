@@ -78,14 +78,17 @@ public class HoatDongForm extends JPanel {
         bar.setOpaque(false);
 
         txtSearch = new JTextField(16);
-        JPanel searchWrap = UITheme.searchField(txtSearch, "Tìm theo tên hoạt động...");
+        JPanel searchWrap = UITheme.searchField(
+            txtSearch,
+            "Tìm theo tên hoặc loại hoạt động..."
+        );
 
         cbThang    = makeCombo("Tháng","T1","T2","T3","T4","T5","T6","T7","T8","T9","T10","T11","T12");
         cbNam      = makeCombo("Năm","2023","2024","2025","2026");
-        cbLoai     = new JComboBox<>(); UITheme.styleCombo(cbLoai);
+//        cbLoai     = new JComboBox<>(); UITheme.styleCombo(cbLoai);
         cbTrangThai= makeCombo("Trạng thái","Sắp diễn ra","Đang diễn ra","Đã kết thúc");
 
-        refreshFilterLoai(); // nạp danh sách loại từ DB vào cbLoai
+//        refreshFilterLoai(); // nạp danh sách loại từ DB vào cbLoai
 
         JButton btnSearch = UITheme.primaryButton("Tìm");
         JButton btnReset  = UITheme.outlineButton("Đặt lại");
@@ -95,11 +98,25 @@ public class HoatDongForm extends JPanel {
 //        setSize2(btnExport, 90, 34);
 
         btnSearch.addActionListener(e -> search());
-        btnReset .addActionListener(e -> { txtSearch.setText(""); loadTable(); });
+        btnReset.addActionListener(e -> {
+
+            txtSearch.setText("");
+
+            cbThang.setSelectedIndex(0);
+
+            cbNam.setSelectedIndex(0);
+
+//            cbLoai.setSelectedIndex(0);
+
+            cbTrangThai.setSelectedIndex(0);
+
+            loadTable();
+        });
 //        btnExport.addActionListener(e -> ExcelExporter.exportToCSV(table, "HoatDong", this));
 
         bar.add(searchWrap); bar.add(cbThang); bar.add(cbNam);
-        bar.add(cbLoai); bar.add(cbTrangThai);
+//        bar.add(cbLoai); 
+        bar.add(cbTrangThai);
         bar.add(btnSearch); bar.add(btnReset); //bar.add(btnExport);
         card.add(bar, BorderLayout.CENTER);
         return card;
@@ -190,21 +207,30 @@ public class HoatDongForm extends JPanel {
         String kw        = txtSearch.getText().trim();
         String thang     = String.valueOf(cbThang.getSelectedItem());
         String nam       = String.valueOf(cbNam.getSelectedItem());
-        String loai      = String.valueOf(cbLoai.getSelectedItem());
+//        String loai      = String.valueOf(cbLoai.getSelectedItem());
         String trangThai = String.valueOf(cbTrangThai.getSelectedItem());
 
         StringBuilder sql = new StringBuilder("SELECT * FROM HoatDong WHERE 1=1");
-        if (!kw.isEmpty())           sql.append(" AND tenHoatDong LIKE ?");
+        if (!kw.isEmpty()) {
+            sql.append(
+                " AND (tenHoatDong LIKE ? OR loaiHoatDong LIKE ?)"
+            );
+}
         if (!"Tháng".equals(thang))  sql.append(" AND MONTH(thoiGianBatDau)=").append(thang.replace("T",""));
         if (!"Năm".equals(nam))      sql.append(" AND YEAR(thoiGianBatDau)=").append(nam);
-        if (!"Loại".equals(loai))    sql.append(" AND loaiHoatDong=?");
+//        if (!"Loại".equals(loai))    sql.append(" AND loaiHoatDong=?");
         sql.append(" ORDER BY id DESC");
 
         try (Connection c  = DatabaseHelper.getConnection();
              PreparedStatement ps = c.prepareStatement(sql.toString())) {
             int idx = 1;
-            if (!kw.isEmpty())        ps.setString(idx++, "%" + kw + "%");
-            if (!"Loại".equals(loai)) ps.setString(idx++, loai);
+            if (!kw.isEmpty()) {
+
+                ps.setString(idx++, "%" + kw + "%");
+
+                ps.setString(idx++, "%" + kw + "%");
+            }
+//            if (!"Loại".equals(loai)) ps.setString(idx++, loai);
 
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {

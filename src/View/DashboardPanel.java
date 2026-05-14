@@ -710,7 +710,15 @@ public class DashboardPanel extends JPanel {
         JPanel topRow = new JPanel(new BorderLayout(10,0));
         topRow.setOpaque(false);
         JLabel lblTitle = new JLabel(title);
-        lblTitle.setFont(FONT_HEADING); lblTitle.setForeground(TXT_H);
+        lblTitle.setOpaque(false);
+        lblTitle.setFont(
+            new Font(
+                "Segoe UI",
+                Font.BOLD,
+                13
+            )
+        
+);
 
         JPanel rightPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         rightPanel.setOpaque(false);
@@ -1266,32 +1274,27 @@ public class DashboardPanel extends JPanel {
         } catch (Exception ignored) {}
 
         // Phân loại vào 4 nhóm
-        List<NotifItem> unread   = new ArrayList<>();
-        List<NotifItem> read     = new ArrayList<>();
-        List<NotifItem> pending  = new ArrayList<>();
+        // Phân loại vào 3 nhóm
+        List<NotifItem> unread = new ArrayList<>();
+        List<NotifItem> opened = new ArrayList<>();
         List<NotifItem> approved = new ArrayList<>();
         for (NotifItem ni : allNotifs) {
+            String tt2 = ni.trangThaiXuLy == null ? "" : ni.trangThaiXuLy.toLowerCase();
+            boolean isApproved = tt2.contains("đã duyệt") || tt2.contains("đã xác nhận") || tt2.contains("đã từ chối") || tt2.contains("đã hủy");
             if (!ni.daDoc) unread.add(ni);
-            else read.add(ni);
-            String tt2 = ni.trangThaiXuLy.toLowerCase();
-            if (tt2.contains("chờ") || tt2.contains("chưa duyệt") || tt2.contains("chưa xử lý")) {
-                pending.add(ni);
-            } else if (tt2.contains("đã duyệt") || tt2.contains("đã xác nhận") || tt2.contains("đã đọc")) {
-                approved.add(ni);
-            }
+            else if (isApproved) approved.add(ni);
+            else opened.add(ni);
         }
 
         // Tab panel
         JTabbedPane tabs = new JTabbedPane(JTabbedPane.TOP);
         tabs.setFont(new Font("Segoe UI", Font.BOLD, 12));
         tabs.addTab("🔴 Chưa đọc (" + unread.size() + ")",
-            buildNotifTab(unread, new Color(235,240,255), BLUE, connGetter, dlg, bellBtn));
-        tabs.addTab("✓ Đã đọc (" + read.size() + ")",
-            buildNotifTab(read, new Color(248,250,252), new Color(160,174,192), connGetter, dlg, bellBtn));
-        tabs.addTab("⏳ Chưa duyệt (" + pending.size() + ")",
-            buildNotifTab(pending, new Color(255,251,235), new Color(245,158,11), connGetter, dlg, bellBtn));
+            buildNotifTab(owner, unread, new Color(235,240,255), BLUE, connGetter, dlg, bellBtn));
+        tabs.addTab("🟡 Đã mở xem (" + opened.size() + ")",
+            buildNotifTab(owner, opened, new Color(255,251,235), new Color(245,158,11), connGetter, dlg, bellBtn));
         tabs.addTab("✅ Đã duyệt (" + approved.size() + ")",
-            buildNotifTab(approved, new Color(236,253,245), new Color(16,185,129), connGetter, dlg, bellBtn));
+            buildNotifTab(owner, approved, new Color(236,253,245), new Color(16,185,129), connGetter, dlg, bellBtn));
 
         dlg.add(tabs, BorderLayout.CENTER);
 
@@ -1319,7 +1322,7 @@ public class DashboardPanel extends JPanel {
         dlg.setVisible(true);
     }
 
-    private static JScrollPane buildNotifTab(List<NotifItem> items, Color bgHighlight,
+    private static JScrollPane buildNotifTab(Window owner, List<NotifItem> items, Color bgHighlight,
                                               Color accentColor,
                                               java.util.function.Supplier<Connection> connGetter,
                                               JDialog dlg, JButton bellBtn) {
@@ -1336,7 +1339,7 @@ public class DashboardPanel extends JPanel {
             panel.add(empty);
         } else {
             for (NotifItem ni : items) {
-                JPanel cell = buildNotifCell(ni, bgHighlight, accentColor, connGetter, dlg, bellBtn);
+                JPanel cell = buildNotifCell(owner, ni, bgHighlight, accentColor, connGetter, dlg, bellBtn);
                 panel.add(cell);
             }
         }
@@ -1347,11 +1350,12 @@ public class DashboardPanel extends JPanel {
         return sp;
     }
 
-    private static JPanel buildNotifCell(NotifItem ni, Color bgColor, Color accentColor,
+    private static JPanel buildNotifCell(Window owner, NotifItem ni, Color bgColor, Color accentColor,
                                           java.util.function.Supplier<Connection> connGetter,
                                           JDialog dlg, JButton bellBtn) {
-        JPanel cell = new JPanel(new BorderLayout(10, 0));
-        cell.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
+        JPanel cell = new JPanel(new BorderLayout(12, 0));
+        cell.setOpaque(true);
+        cell.setMaximumSize(new Dimension(Integer.MAX_VALUE, 102));
         cell.setAlignmentX(Component.LEFT_ALIGNMENT);
         cell.setBorder(new CompoundBorder(
             new MatteBorder(0,0,1,0,new Color(235,237,242)),
@@ -1372,13 +1376,23 @@ public class DashboardPanel extends JPanel {
         JPanel content = new JPanel(new BorderLayout(0, 4));
         content.setOpaque(false);
 
-        JLabel lblText = new JLabel("<html><body style='width:380px'>" + ni.noiDung + "</body></html>");
-        lblText.setFont(ni.daDoc ? new Font("Segoe UI",Font.PLAIN,12) : new Font("Segoe UI",Font.BOLD,12));
-        lblText.setForeground(ni.daDoc ? new Color(100,116,139) : TXT_H);
+        String title = ni.noiDung == null ? "Thông báo" : ni.noiDung.split("\\.", 2)[0];
+        if (title.length() > 64) title = title.substring(0, 61) + "...";
+        String body = ni.noiDung == null ? "" : ni.noiDung;
 
-        JPanel bottomRow = new JPanel(new BorderLayout());
+        JLabel lblTitle = new JLabel(title);
+        lblTitle.setFont(new Font("Segoe UI", ni.daDoc ? Font.PLAIN : Font.BOLD, 13));
+        lblTitle.setForeground(ni.daDoc ? new Color(71,85,105) : new Color(30,41,59));
+
+        JLabel lblText = new JLabel("<html><div style='width:350px; color:#64748b;'>" + body + "</div></html>");
+        lblText.setOpaque(false);
+        lblText.setFont(new Font("Segoe UI", Font.PLAIN, 12));
+
+
+        JPanel bottomRow = new JPanel(new BorderLayout(8, 0));
         bottomRow.setOpaque(false);
         JLabel lblTime = new JLabel("🕐 " + ni.thoiGian);
+        lblTime.setOpaque(false);
         lblTime.setFont(new Font("Segoe UI",Font.PLAIN,10)); lblTime.setForeground(new Color(160,174,192));
 
         // Status badge
@@ -1400,29 +1414,44 @@ public class DashboardPanel extends JPanel {
                 g2.dispose(); super.paintComponent(g);
             }
         };
+        statusBadge.setOpaque(false);
         statusBadge.setFont(new Font("Segoe UI",Font.BOLD,10));
         statusBadge.setForeground(badgeFg); statusBadge.setOpaque(false);
 
         bottomRow.add(lblTime, BorderLayout.WEST); bottomRow.add(statusBadge, BorderLayout.EAST);
-        content.add(lblText, BorderLayout.CENTER); content.add(bottomRow, BorderLayout.SOUTH);
+        content.add(lblTitle, BorderLayout.NORTH); content.add(lblText, BorderLayout.CENTER); content.add(bottomRow, BorderLayout.SOUTH);
         cell.add(content, BorderLayout.CENTER);
 
         // Hover + click đánh dấu đã đọc
         cell.addMouseListener(new MouseAdapter() {
             Color origBg = cell.getBackground();
             public void mouseEntered(MouseEvent e) {
-                cell.setBackground(new Color(accentColor.getRed(),accentColor.getGreen(),accentColor.getBlue(),20));
-                cell.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                cell.setBackground(
+                    new Color(239,246,255)
+                );
+
+//                cell.repaint();
+
+                cell.setCursor(
+                    Cursor.getPredefinedCursor(
+                        Cursor.HAND_CURSOR
+                    )
+                );
             }
-            public void mouseExited(MouseEvent e) { cell.setBackground(origBg); }
+            public void mouseExited(MouseEvent e) {
+
+                cell.setBackground(origBg);
+
+//                cell.repaint();
+}
             public void mouseClicked(MouseEvent e) {
                 if (!ni.daDoc) {
                     try (Connection c = connGetter.get()) {
                         if (c!=null) c.createStatement().executeUpdate("UPDATE ThongBao SET daDoc=1 WHERE id="+ni.id);
                         ni.daDoc = true;
                         cell.setBackground(Color.WHITE);
-                        lblText.setFont(new Font("Segoe UI",Font.PLAIN,12));
-                        lblText.setForeground(new Color(100,116,139));
+                        lblTitle.setFont(new Font("Segoe UI",Font.PLAIN,13));
+                        lblTitle.setForeground(new Color(71,85,105));
                         if (bellBtn!=null) bellBtn.repaint();
                     } catch (Exception ignored) {}
                 }
@@ -1438,7 +1467,12 @@ public class DashboardPanel extends JPanel {
                             if (bellBtn != null)
                                 bellBtn.repaint();
 
-                            dlg.setVisible(true);
+                            dlg.dispose();
+                            showNotificationDialog(
+                                (Frame) owner,
+                                connGetter,
+                                bellBtn
+);
                         }
                 );
             }
@@ -1638,8 +1672,11 @@ public class DashboardPanel extends JPanel {
 //        JButton closeBtn = new JButton("Đóng");
 //        closeBtn.setFont(new Font("Segoe UI", Font.BOLD, 12));
 //        closeBtn.addActionListener(e -> detail.dispose());
-          foot.add(btnApprove);
-          foot.add(btnReject);
+          
+
+            foot.add(btnApprove);
+
+            foot.add(btnReject);
 
 //        foot.add(actionBtn);
 //        foot.add(closeBtn);
@@ -1807,12 +1844,12 @@ public class DashboardPanel extends JPanel {
                 
                 // gửi email thông báo hội viên
                 PreparedStatement psEmail = conn.prepareStatement(
-                    "SELECT hoTen,email FROM HoiVien WHERE id=?"
-                );
+                    "SELECT tenHoiVien,email FROM HoiVien WHERE id=?"
+);
                 psEmail.setInt(1, idHoiVien);
                 ResultSet rsEmail = psEmail.executeQuery();
                 if (rsEmail.next()) {
-                    String ten = rsEmail.getString("hoTen");
+                    String ten = rsEmail.getString("tenHoiVien");
                     String email = rsEmail.getString("email");
                     if (email != null && !email.isBlank()) {
                         String body = String.format(
@@ -2160,9 +2197,20 @@ if(ni.idKhoiPhucHoiVien != null){
               setFocusPainted(false); setFont(new Font("Segoe UI",Font.BOLD,11));
               setForeground(BLUE); setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
               addMouseListener(new MouseAdapter(){
-                  public void mouseEntered(MouseEvent e){ hov=true; repaint(); }
-                  public void mouseExited(MouseEvent e){ hov=false; repaint(); }
-              });
+                    public void mouseEntered(MouseEvent e) {
+
+                        hov = true;
+
+                        repaint();
+                    }
+
+                    public void mouseExited(MouseEvent e) {
+
+                        hov = false;
+
+                        repaint();
+                    }
+                });
             }
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2=(Graphics2D)g.create();
