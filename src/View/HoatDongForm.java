@@ -53,7 +53,7 @@ public class HoatDongForm extends JPanel {
                 "Tổ chức và theo dõi hoạt động hội viên"),
             BorderLayout.WEST
         );
-        JButton btnAdd = UITheme.primaryButton("  ＋  Thêm mới");
+        JButton btnAdd = UITheme.primaryButton("Thêm mới hoạt động");
         btnAdd.setPreferredSize(new Dimension(170, 36));
         btnAdd.addActionListener(e -> openForm(null));
         header.add(btnAdd, BorderLayout.EAST);
@@ -85,11 +85,9 @@ public class HoatDongForm extends JPanel {
 
         cbThang    = makeCombo("Tháng","T1","T2","T3","T4","T5","T6","T7","T8","T9","T10","T11","T12");
         cbNam      = makeCombo("Năm","2023","2024","2025","2026");
-//        cbLoai     = new JComboBox<>(); UITheme.styleCombo(cbLoai);
-        cbTrangThai= makeCombo("Trạng thái","Sắp diễn ra","Đang diễn ra","Đã kết thúc");
+        cbLoai     = new JComboBox<>(); UITheme.styleCombo(cbLoai);        cbTrangThai= makeCombo("Trạng thái","Sắp diễn ra","Đang diễn ra","Đã kết thúc");
 
-//        refreshFilterLoai(); // nạp danh sách loại từ DB vào cbLoai
-
+        refreshFilterLoai(); // nạp danh sách loại từ DB vào cbLoai
         JButton btnSearch = UITheme.primaryButton("Tìm");
         JButton btnReset  = UITheme.outlineButton("Đặt lại");
 //        JButton btnExport = UITheme.outlineButton("Xuất file");
@@ -106,7 +104,7 @@ public class HoatDongForm extends JPanel {
 
             cbNam.setSelectedIndex(0);
 
-//            cbLoai.setSelectedIndex(0);
+            cbLoai.setSelectedIndex(0);
 
             cbTrangThai.setSelectedIndex(0);
 
@@ -115,7 +113,7 @@ public class HoatDongForm extends JPanel {
 //        btnExport.addActionListener(e -> ExcelExporter.exportToCSV(table, "HoatDong", this));
 
         bar.add(searchWrap); bar.add(cbThang); bar.add(cbNam);
-//        bar.add(cbLoai); 
+        bar.add(cbLoai); 
         bar.add(cbTrangThai);
         bar.add(btnSearch); bar.add(btnReset); //bar.add(btnExport);
         card.add(bar, BorderLayout.CENTER);
@@ -207,7 +205,7 @@ public class HoatDongForm extends JPanel {
         String kw        = txtSearch.getText().trim();
         String thang     = String.valueOf(cbThang.getSelectedItem());
         String nam       = String.valueOf(cbNam.getSelectedItem());
-//        String loai      = String.valueOf(cbLoai.getSelectedItem());
+        String loai      = String.valueOf(cbLoai.getSelectedItem());
         String trangThai = String.valueOf(cbTrangThai.getSelectedItem());
 
         StringBuilder sql = new StringBuilder("SELECT * FROM HoatDong WHERE 1=1");
@@ -313,7 +311,7 @@ public class HoatDongForm extends JPanel {
  
         // Section title trái
         lg.gridx = 0; lg.gridy = 0; lg.gridwidth = 2; lg.weightx = 1;
-        leftCol.add(buildSectionTitle("📋  Thông tin hoạt động"), lg);
+        leftCol.add(buildSectionTitle("Thông tin hoạt động"), lg);
         lg.gridwidth = 1;
  
         // Tên hoạt động
@@ -370,7 +368,7 @@ public class HoatDongForm extends JPanel {
  
         // Section title phải
         rg.gridx = 0; rg.gridy = 0; rg.gridwidth = 1;
-        rightCol.add(buildSectionTitle("🏷️  Loại hoạt động"), rg);
+        rightCol.add(buildSectionTitle("Loại hoạt động"), rg);
  
         // Hướng dẫn
         rg.gridy = 1;
@@ -587,7 +585,7 @@ public class HoatDongForm extends JPanel {
  
     // ── Helper: nút thêm loại mới ────────────────────────────────────────────
     private JButton buildAddLoaiButton() {
-        JButton btn = new JButton("＋  Thêm loại mới");
+        JButton btn = new JButton("Thêm loại mới");
         btn.setFont(new Font("Segoe UI", Font.BOLD, 12));
         btn.setForeground(Color.decode("#1359B9"));
         btn.setBackground(Color.decode("#EEF4FF"));
@@ -781,7 +779,7 @@ public class HoatDongForm extends JPanel {
         JPanel hdr = new JPanel(new BorderLayout());
         hdr.setBackground(Color.decode("#1359B9"));
         hdr.setBorder(new EmptyBorder(13, 20, 13, 20));
-        JLabel lblTitle = new JLabel("🏷️  Thêm loại hoạt động mới");
+        JLabel lblTitle = new JLabel("Thêm loại hoạt động mới");
         lblTitle.setFont(new Font("Segoe UI", Font.BOLD, 14));
         lblTitle.setForeground(Color.WHITE);
         hdr.add(lblTitle);
@@ -837,7 +835,7 @@ public class HoatDongForm extends JPanel {
         foot2.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, UITheme.BORDER_COLOR));
  
         JButton btnHuy  = UITheme.outlineButton("Hủy");
-        JButton btnThem = UITheme.primaryButton("＋  Thêm loại");
+        JButton btnThem = UITheme.primaryButton("Thêm loại");
         setSize2(btnHuy, 90, 34);
         setSize2(btnThem, 120, 34);
  

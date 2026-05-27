@@ -65,7 +65,7 @@ public class HoiVienForm extends JPanel {
                 "Danh sách và hồ sơ hội viên trong hệ thống"),
             BorderLayout.WEST
         );
-        JButton btnAdd = UITheme.primaryButton("  ＋  Thêm hội viên");
+        JButton btnAdd = UITheme.primaryButton("Thêm hội viên");
         btnAdd.setPreferredSize(new Dimension(170, 36));
         btnAdd.addActionListener(e -> openForm(null));
         header.add(btnAdd, BorderLayout.EAST);
@@ -197,9 +197,9 @@ public class HoiVienForm extends JPanel {
 
         JPanel acts = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         acts.setOpaque(false);
-        JButton btnExportTbl = UITheme.outlineButton("📥  Xuất Excel");
-        JButton btnEdit      = UITheme.outlineButton("✏  Chỉnh sửa");
-        JButton btnDel       = UITheme.dangerButton("🗑  Xóa");
+        JButton btnExportTbl = UITheme.outlineButton("Xuất Excel");
+        JButton btnEdit      = UITheme.outlineButton("Chỉnh sửa");
+        JButton btnDel       = UITheme.dangerButton("Xóa");
         btnExportTbl.setPreferredSize(new Dimension(130, 32));
         btnEdit     .setPreferredSize(new Dimension(120, 32));
         btnDel      .setPreferredSize(new Dimension(90,  32));
@@ -347,13 +347,13 @@ public class HoiVienForm extends JPanel {
         gc.insets = new Insets(6, 4, 6, 4);
         gc.anchor = GridBagConstraints.WEST;
 
-        addDetailRow(info, gc, 0, "📅  Ngày sinh:",       ngaySinh);
-        addDetailRow(info, gc, 1, "⚧  Giới tính:",       gt);
-        addDetailRow(info, gc, 2, "📞  Số điện thoại:",   sdt);
-        addDetailRow(info, gc, 3, "📧  Email:",            email);
-        addDetailRow(info, gc, 4, "📍  Địa chỉ:",         diaChi);
-        addDetailRow(info, gc, 5, "🏷  Trạng thái:",      tt);
-        addDetailRow(info, gc, 6, "📆  Ngày tham gia:",   ngayTG);
+        addDetailRow(info, gc, 0, "Ngày sinh:",       ngaySinh);
+        addDetailRow(info, gc, 1, "Giới tính:",       gt);
+        addDetailRow(info, gc, 2, "Số điện thoại:",   sdt);
+        addDetailRow(info, gc, 3, "Email:",            email);
+        addDetailRow(info, gc, 4, "Địa chỉ:",         diaChi);
+        addDetailRow(info, gc, 5, "Trạng thái:",      tt);
+        addDetailRow(info, gc, 6, "Ngày tham gia:",   ngayTG);
 
         // ── Footer buttons ────────────────────────────────────────────────
         JPanel btns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 10));
@@ -362,8 +362,8 @@ public class HoiVienForm extends JPanel {
 
         JButton btnLeave = UITheme.dangerButton("Yêu cầu rời hội");
         JButton btnRestore = UITheme.primaryButton("Khôi phục hội viên");
-        JButton btnPdf   = UITheme.outlineButton("📄  Xuất PDF");
-        JButton btnEdit2 = UITheme.outlineButton("✏  Chỉnh sửa");
+        JButton btnPdf   = UITheme.outlineButton("Xuất PDF");
+        JButton btnEdit2 = UITheme.outlineButton("Chỉnh sửa");
         JButton btnClose = UITheme.primaryButton("Đóng");
         btnLeave.setPreferredSize(new Dimension(150, 34));
         btnPdf  .setPreferredSize(new Dimension(110, 34));
@@ -661,16 +661,60 @@ public class HoiVienForm extends JPanel {
             "Bạn có chắc chắn muốn xóa hội viên này không?",
             "Xác nhận xóa", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (confirm == JOptionPane.YES_OPTION) {
-            try (Connection conn = DatabaseHelper.getConnection();
-                 PreparedStatement ps = conn.prepareStatement("DELETE FROM HoiVien WHERE id=?")) {
-                ArchiveDAO.archiveByQuery("Hội viên", id, "HoiVien", "id", Session.getCurrentUserId(), "XÓA");
-                ps.setInt(1, id);
-                ps.executeUpdate();
-                NhatKyDAO.log(Session.getCurrentUserId(), "XÓA", "HoiVien",
-                    "Xóa hội viên ID: " + id);
-                loadTable();
-                JOptionPane.showMessageDialog(this, "Xóa hội viên thành công",
-                    "Thành công", JOptionPane.INFORMATION_MESSAGE);
+            try (Connection conn = DatabaseHelper.getConnection()) {
+                conn.setAutoCommit(false);
+                try {
+                    ArchiveDAO.archiveByQuery("Hội viên", id, "HoiVien", "id", Session.getCurrentUserId(), "XÓA");
+
+                    // Xóa các bản ghi phụ thuộc trước để tránh lỗi khóa ngoại.
+                    try (PreparedStatement psNotifyRestore = conn.prepareStatement(
+                        "DELETE FROM ThongBao WHERE idKhoiPhucHoiVien IN (SELECT id FROM YeuCauKhoiPhucHoiVien WHERE idHoiVien=?)")) {
+                        psNotifyRestore.setInt(1, id);
+                        psNotifyRestore.executeUpdate();
+                    }
+                    try (PreparedStatement psRestore = conn.prepareStatement("DELETE FROM YeuCauKhoiPhucHoiVien WHERE idHoiVien=?")) {
+                        psRestore.setInt(1, id);
+                        psRestore.executeUpdate();
+                    }
+                    try (PreparedStatement psNotifyLeave = conn.prepareStatement(
+                        "DELETE FROM ThongBao WHERE idYeuCauRoiHoi IN (SELECT id FROM YeuCauRoiHoi WHERE idHoiVien=?)")) {
+                        psNotifyLeave.setInt(1, id);
+                        psNotifyLeave.executeUpdate();
+                    }
+                    try (PreparedStatement psLeave = conn.prepareStatement("DELETE FROM YeuCauRoiHoi WHERE idHoiVien=?")) {
+                        psLeave.setInt(1, id);
+                        psLeave.executeUpdate();
+                    }
+                    try (PreparedStatement psNotifyTemp = conn.prepareStatement(
+                        "DELETE FROM ThongBao WHERE idDangKyTam IN (SELECT id FROM DangKyTam WHERE idHoiVien=?)")) {
+                        psNotifyTemp.setInt(1, id);
+                        psNotifyTemp.executeUpdate();
+                    }
+                    try (PreparedStatement psTempReg = conn.prepareStatement("DELETE FROM DangKyTam WHERE idHoiVien=?")) {
+                        psTempReg.setInt(1, id);
+                        psTempReg.executeUpdate();
+                    }
+                    try (PreparedStatement psJoin = conn.prepareStatement("DELETE FROM ThamGia WHERE idHoiVien=?")) {
+                        psJoin.setInt(1, id);
+                        psJoin.executeUpdate();
+                    }
+                    try (PreparedStatement psDeleteMember = conn.prepareStatement("DELETE FROM HoiVien WHERE id=?")) {
+                        psDeleteMember.setInt(1, id);
+                        psDeleteMember.executeUpdate();
+                    }
+
+                    conn.commit();
+                    NhatKyDAO.log(Session.getCurrentUserId(), "XÓA", "HoiVien",
+                        "Xóa hội viên ID: " + id);
+                    loadTable();
+                    JOptionPane.showMessageDialog(this, "Xóa hội viên thành công",
+                        "Thành công", JOptionPane.INFORMATION_MESSAGE);
+                } catch (Exception ex) {
+                    conn.rollback();
+                    throw ex;
+                } finally {
+                    conn.setAutoCommit(true);
+                }
             } catch (Exception e) {
                 JOptionPane.showMessageDialog(this, "Lỗi khi xóa: " + e.getMessage());
             }

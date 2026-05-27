@@ -9,7 +9,7 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.sql.*;
-import javax.swing.JTabbedPane;
+//import javax.swing.JTabbedPane;
 
 /**
  * NhatKyForm – Nhật ký hệ thống.
@@ -21,7 +21,7 @@ public class NhatKyForm extends JPanel {
     private DefaultTableModel model;
     private JSpinner fromDate;
     private JSpinner toDate;
-    private JTabbedPane tabs;
+//    private JTabbedPane tabs;
 
     public NhatKyForm() {
         setLayout(new BorderLayout(0, 0));
@@ -44,7 +44,7 @@ public class NhatKyForm extends JPanel {
         JPanel center = new JPanel(new BorderLayout());
         center.setOpaque(false);
 
-        tabs = new JTabbedPane();
+//        tabs = new JTabbedPane();
 
 
         // ======================
@@ -89,20 +89,21 @@ public class NhatKyForm extends JPanel {
         // TAB KHO LƯU TRỮ
         // ======================
 
-        ArchiveForm archiveForm =
-                new ArchiveForm();
-
-        tabs.addTab(
-                "Danh sách nhật ký",
-                logPanel
-        );
-
-        tabs.addTab(
-                "Kho lưu trữ",
-                archiveForm
-        );
-
-        center.add(tabs, BorderLayout.CENTER);
+//        ArchiveForm archiveForm =
+//                new ArchiveForm();
+//
+//        tabs.addTab(
+//                "Danh sách nhật ký",
+//                logPanel
+//        );
+//
+//        tabs.addTab(
+//                "Kho lưu trữ",
+//                archiveForm
+//        );
+//
+//        center.add(tabs, BorderLayout.CENTER);
+                    center.add(logPanel, BorderLayout.CENTER);
 
         add(center, BorderLayout.CENTER);
             }
@@ -123,8 +124,8 @@ public class NhatKyForm extends JPanel {
         lblTo.setFont(UITheme.FONT_BOLD);
         lblTo.setForeground(UITheme.TEXT_SECONDARY);
 
-        JButton btnFilter = UITheme.primaryButton("  🔍  Lọc");
-        JButton btnReset  = UITheme.outlineButton("  ↺  Đặt lại");
+        JButton btnFilter = UITheme.primaryButton("Lọc");
+        JButton btnReset  = UITheme.outlineButton("Đặt lại");
         btnFilter.setPreferredSize(new Dimension(110, 34));
         btnReset .setPreferredSize(new Dimension(110, 34));
         btnFilter.addActionListener(e -> loadData());
@@ -178,7 +179,7 @@ public class NhatKyForm extends JPanel {
         left.add(title);
         p.add(left, BorderLayout.WEST);
 
-        JButton btnExport = UITheme.outlineButton("📥  Xuất Excel");
+        JButton btnExport = UITheme.outlineButton("Xuất Excel");
         btnExport.setPreferredSize(new Dimension(130, 32));
         p.add(btnExport, BorderLayout.EAST);
         return p;

@@ -152,16 +152,54 @@ public class LoginForm extends JFrame {
         // Close button
         JButton btnClose = new JButton("✕") {
             boolean hov = false;
-            { setOpaque(false); setContentAreaFilled(false); setBorderPainted(false);
-              setFocusPainted(false); setFont(new Font("Segoe UI", Font.BOLD, 13));
-              setForeground(UITheme.TEXT_MUTED); setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-              addMouseListener(new MouseAdapter() {
-                  public void mouseEntered(MouseEvent e) { hov=true; repaint(); }
-                  public void mouseExited (MouseEvent e) { hov=false; repaint(); }
-              });
+
+            {
+                setOpaque(false);
+                setContentAreaFilled(false);
+                setBorderPainted(false);
+                setFocusPainted(false);
+
+                // Font hỗ trợ ký tự X đẹp hơn
+                setFont(new Font("Segoe UI Symbol", Font.BOLD, 16));
+
+                setForeground(UITheme.TEXT_MUTED);
+                setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+                addMouseListener(new MouseAdapter() {
+
+                    @Override
+                    public void mouseEntered(MouseEvent e) {
+                        hov = true;
+                        setForeground(Color.RED);
+                        repaint();
+                    }
+
+                    @Override
+                    public void mouseExited(MouseEvent e) {
+                        hov = false;
+                        setForeground(UITheme.TEXT_MUTED);
+                        repaint();
+                    }
+                });
             }
-            @Override protected void paintComponent(Graphics g) {
-                if (hov) { g.setColor(new Color(239,68,68,20)); g.fillOval(0,0,getWidth(),getHeight()); }
+
+            @Override
+            protected void paintComponent(Graphics g) {
+
+                Graphics2D g2=(Graphics2D)g.create();
+
+                g2.setRenderingHint(
+                    RenderingHints.KEY_ANTIALIASING,
+                    RenderingHints.VALUE_ANTIALIAS_ON
+                );
+
+                if(hov){
+                    g2.setColor(new Color(239,68,68,30));
+                    g2.fillOval(0,0,getWidth(),getHeight());
+                }
+
+                g2.dispose();
+
                 super.paintComponent(g);
             }
         };

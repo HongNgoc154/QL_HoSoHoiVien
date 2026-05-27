@@ -45,7 +45,7 @@ public class ThamGiaForm extends JPanel {
         header.setBorder(new EmptyBorder(0, 0, 14, 0));
         header.add(UITheme.pageTitlePanel("Quản lý Tham gia",
                 "Theo dõi đăng ký và tham dự hoạt động"), BorderLayout.WEST);
-        JButton btnAdd = UITheme.primaryButton("  ＋  Thêm đăng ký");
+        JButton btnAdd = UITheme.primaryButton("Thêm đăng ký");
         btnAdd.setPreferredSize(new Dimension(170, 36));
         btnAdd.addActionListener(e -> openForm(null));
         header.add(btnAdd, BorderLayout.EAST);
@@ -125,7 +125,7 @@ public class ThamGiaForm extends JPanel {
 
         JPanel acts = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 0));
         acts.setOpaque(false);
-        JButton btnExport = UITheme.outlineButton("📥 Xuất Excel");
+        JButton btnExport = UITheme.outlineButton("Xuất Excel");
         JButton btnEdit = UITheme.outlineButton("Chỉnh sửa");
         JButton btnDel  = UITheme.dangerButton("Xóa");
         btnExport.addActionListener(e -> ExcelExporter.exportToCSV(table, "ThamGia", this));
@@ -231,7 +231,7 @@ public class ThamGiaForm extends JPanel {
         JPanel fh = new JPanel(new BorderLayout());
         fh.setBackground(UITheme.PRIMARY);
         fh.setBorder(new EmptyBorder(14, 20, 14, 20));
-        JLabel hl = new JLabel(isEdit ? "✏  Cập nhật trạng thái tham gia" : "➕  Thêm đăng ký tham gia");
+        JLabel hl = new JLabel(isEdit ? "Cập nhật trạng thái tham gia" : "Thêm đăng ký tham gia");
         hl.setFont(new Font("Segoe UI", Font.BOLD, 15));
         hl.setForeground(Color.WHITE);
         fh.add(hl);
@@ -267,7 +267,7 @@ public class ThamGiaForm extends JPanel {
             JPanel leftPanel = new JPanel(new BorderLayout());
             leftPanel.setBackground(Color.WHITE);
             leftPanel.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, UITheme.BORDER_COLOR));
-            leftPanel.add(buildSectionTitle("👤  Thông tin hội viên", UITheme.PRIMARY), BorderLayout.NORTH);
+            leftPanel.add(buildSectionTitle("Thông tin hội viên", UITheme.PRIMARY), BorderLayout.NORTH);
  
             JPanel leftFields = new JPanel(new GridBagLayout());
             leftFields.setBackground(Color.WHITE);
@@ -358,7 +358,7 @@ public class ThamGiaForm extends JPanel {
             // ── 3. PANEL PHẢI: Chọn hoạt động ─────────────────────────────
             JPanel rightPanel = new JPanel(new BorderLayout());
             rightPanel.setBackground(Color.WHITE);
-            rightPanel.add(buildSectionTitle("📅  Chọn hoạt động", new Color(14, 118, 168)), BorderLayout.NORTH);
+            rightPanel.add(buildSectionTitle("Chọn hoạt động", new Color(14, 118, 168)), BorderLayout.NORTH);
  
             JPanel rightContent = new JPanel(new BorderLayout(0, 8));
             rightContent.setBackground(Color.WHITE);

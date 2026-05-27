@@ -11,6 +11,9 @@ import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.sql.*;
 import java.time.LocalDate;
+import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableCellEditor;
+import java.awt.event.ItemEvent;
 
 /**
  * NhanVienForm – Quản lý nhân viên và tài khoản.
@@ -84,11 +87,13 @@ public class NhanVienForm extends JPanel {
     private JPanel buildTableCard() {
         model = new DefaultTableModel(
             new String[]{"ID","Mã NV","Họ tên","Username","Vai trò","Giới tính","SĐT","Email","Trạng thái"}, 0) {
-            public boolean isCellEditable(int r, int c) { return false; }
+            public boolean isCellEditable(int r, int c) { return c == 8; }
         };
         table = new StyledTable(model);
         int[] w = {50, 80, 180, 110, 90, 70, 110, 170, 90};
         for (int i = 0; i < w.length; i++) table.getColumnModel().getColumn(i).setPreferredWidth(w[i]);
+        table.getColumnModel().getColumn(8).setCellRenderer(new ToggleRenderer());
+        table.getColumnModel().getColumn(8).setCellEditor(new ToggleEditor());
 
         JPanel card = UITheme.cardPanel(new BorderLayout());
 
@@ -314,4 +319,110 @@ public class NhanVienForm extends JPanel {
     }
 
     private String str(Object o) { return o == null ? "" : o.toString(); }
+    
+    
+    private class ToggleRenderer extends JToggleButton implements TableCellRenderer {
+    public ToggleRenderer() {
+        setHorizontalAlignment(SwingConstants.CENTER);
+        setFocusPainted(false);
+    }
+
+    @Override
+    public Component getTableCellRendererComponent(JTable table, Object value,
+            boolean isSelected, boolean hasFocus, int row, int column) {
+
+        boolean active = "Đang làm".equalsIgnoreCase(str(value));
+        setSelected(active);
+        setText(active ? "Đang làm" : "Nghỉ");
+        setBackground(active ? new Color(209, 250, 229) : new Color(254, 226, 226));
+        setForeground(active ? new Color(4, 120, 87) : new Color(185, 28, 28));
+        return this;
+    }
+}
+
+private class ToggleEditor extends AbstractCellEditor implements TableCellEditor {
+    private final JToggleButton toggle = new JToggleButton();
+    private int currentId;
+    private int currentRow;
+
+    public ToggleEditor() {
+        toggle.setHorizontalAlignment(SwingConstants.CENTER);
+        toggle.setFocusPainted(false);
+
+        toggle.addActionListener(e -> {
+
+            String currentStatus = str(model.getValueAt(currentRow, 8));
+
+            String newStatus =
+                currentStatus.equalsIgnoreCase("Đang làm")
+                ? "Nghỉ"
+                : "Đang làm";
+
+            int ok = JOptionPane.showConfirmDialog(
+                NhanVienForm.this,
+                newStatus.equals("Đang làm")
+                ? "Cho phép nhân viên hoạt động lại?\nTài khoản có thể đăng nhập."
+                : "Ngừng nhân viên này?\nTài khoản sẽ không thể đăng nhập.",
+                "Xác nhận",
+                JOptionPane.YES_NO_OPTION
+            );
+
+            if(ok == JOptionPane.YES_OPTION){
+
+                if (updateStatus(currentId, newStatus)) {
+                    model.setValueAt(newStatus, currentRow, 8);
+                }
+
+            }
+
+            fireEditingStopped();
+
+            SwingUtilities.invokeLater(() -> loadTable());
+
+        });
+    }
+
+    @Override
+    public Component getTableCellEditorComponent(JTable table, Object value,
+            boolean isSelected, int row, int column) {
+
+        currentRow = table.convertRowIndexToModel(row);
+        currentId = (int) model.getValueAt(currentRow, 0);
+
+        boolean active = "Đang làm".equalsIgnoreCase(str(value));
+        toggle.setSelected(active);
+        toggle.setText(active ? "Đang làm" : "Nghỉ");
+        return toggle;
+    }
+
+    @Override
+    public Object getCellEditorValue() {
+        return toggle.isSelected() ? "Đang làm" : "Nghỉ";
+    }
+}
+
+    private boolean updateStatus(int idNhanVien, String status) {
+        if (idNhanVien == Session.getCurrentUserId() && status.equals("Nghỉ")) {
+            JOptionPane.showMessageDialog(this, "Không thể ngừng tài khoản đang đăng nhập!");
+            return false;
+        }
+
+        try (Connection c = DatabaseHelper.getConnection();
+             PreparedStatement ps = c.prepareStatement(
+                 "UPDATE NhanVien SET trangThai=? WHERE id=?")) {
+
+            ps.setString(1, status);
+            ps.setInt(2, idNhanVien);
+            ps.executeUpdate();
+
+            NhatKyDAO.log(Session.getCurrentUserId(), "CẬP NHẬT", "Nhân viên",
+                "Đổi trạng thái nhân viên ID " + idNhanVien + " thành " + status);
+
+            return true;
+
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this, "Lỗi cập nhật trạng thái: " + e.getMessage());
+            return false;
+        }
+    }
 }

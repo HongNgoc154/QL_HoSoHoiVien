@@ -236,22 +236,36 @@ public class DashboardPanel extends JPanel {
                 toSqlDate(prev.start), toSqlDate(prev.end));
 
         // Đã rời (ngayRoi trong kỳ)
-        int leftCur  = count("SELECT COUNT(*) FROM HoiVien WHERE trangThai LIKE N'%Rời%' AND (ngayRoi BETWEEN ? AND ? OR ngayRoi IS NULL)",
+        int leftCur  = count("SELECT COUNT(*) FROM HoiVien WHERE trangThai LIKE N'%Rời%' AND ngayRoi BETWEEN ? AND ?",
                 toSqlDate(cur.start), toSqlDate(cur.end));
-        int leftPrev = count("SELECT COUNT(*) FROM HoiVien WHERE trangThai LIKE N'%Rời%' AND (ngayRoi BETWEEN ? AND ? OR ngayRoi IS NULL)",
+        int leftPrev = count("SELECT COUNT(*) FROM HoiVien WHERE trangThai LIKE N'%Rời%' AND ngayRoi BETWEEN ? AND ?",
                 toSqlDate(prev.start), toSqlDate(prev.end));
 
         // Hoạt động (bắt đầu trong kỳ)
-        int actCur  = count("SELECT COUNT(*) FROM HoatDong WHERE thoiGianBatDau BETWEEN ? AND ?",
-                toSqlDate(cur.start), toSqlDate(cur.end));
-        int actPrev = count("SELECT COUNT(*) FROM HoatDong WHERE thoiGianBatDau BETWEEN ? AND ?",
-                toSqlDate(prev.start), toSqlDate(prev.end));
+        int actCur = count(
+            "SELECT COUNT(*) FROM HoatDong WHERE thoiGianBatDau >= ? AND thoiGianBatDau < DATEADD(day, 1, ?)",
+            toSqlDate(cur.start),
+            toSqlDate(cur.end)
+        );
+
+        int actPrev = count(
+            "SELECT COUNT(*) FROM HoatDong WHERE thoiGianBatDau >= ? AND thoiGianBatDau < DATEADD(day, 1, ?)",
+            toSqlDate(prev.start),
+            toSqlDate(prev.end)
+        );
 
         // Lượt tham gia (đăng ký trong kỳ)
-        int partCur  = count("SELECT COUNT(*) FROM ThamGia WHERE ngayDangKy BETWEEN ? AND ?",
-                toSqlDate(cur.start), toSqlDate(cur.end));
-        int partPrev = count("SELECT COUNT(*) FROM ThamGia WHERE ngayDangKy BETWEEN ? AND ?",
-                toSqlDate(prev.start), toSqlDate(prev.end));
+        int partCur = count(
+            "SELECT COUNT(*) FROM ThamGia WHERE CAST(ngayDangKy AS date) BETWEEN ? AND ?",
+            toSqlDate(cur.start),
+            toSqlDate(cur.end)
+        );
+
+        int partPrev = count(
+            "SELECT COUNT(*) FROM ThamGia WHERE CAST(ngayDangKy AS date) BETWEEN ? AND ?",
+            toSqlDate(prev.start),
+            toSqlDate(prev.end)
+        );
 
         pnlStats.add(statCard("👥 Tổng hội viên",   totalCur, pct(totalCur, totalPrev), BLUE,   new Color(232,240,253)));
         pnlStats.add(statCard("✨ Hội viên mới",      newCur,   pct(newCur,   newPrev),   GREEN,  new Color(209,250,229)));
@@ -2124,11 +2138,12 @@ if(ni.idKhoiPhucHoiVien != null){
         PeriodRange cur  = getCurrentPeriod();
         PeriodRange prev = getPreviousPeriod(cur);
 
-        int totalCur  = count("SELECT COUNT(*) FROM HoiVien");
+        int totalCur  = count("SELECT COUNT(*) FROM HoiVien WHERE ngayThamGia <= ?", toSqlDate(cur.end));
         int totalPrev = count("SELECT COUNT(*) FROM HoiVien WHERE ngayThamGia <= ?", toSqlDate(prev.end));
         int newCur2   = count("SELECT COUNT(*) FROM HoiVien WHERE ngayThamGia BETWEEN ? AND ?", toSqlDate(cur.start), toSqlDate(cur.end));
         int newPrev2  = count("SELECT COUNT(*) FROM HoiVien WHERE ngayThamGia BETWEEN ? AND ?", toSqlDate(prev.start), toSqlDate(prev.end));
-        int leftCur2  = count("SELECT COUNT(*) FROM HoiVien WHERE trangThai LIKE N'%Rời%'");
+         int leftCur2  = count("SELECT COUNT(*) FROM HoiVien WHERE trangThai LIKE N'%Rời%' AND ngayRoi BETWEEN ? AND ?", toSqlDate(cur.start), toSqlDate(cur.end));
+        int leftPrev2 = count("SELECT COUNT(*) FROM HoiVien WHERE trangThai LIKE N'%Rời%' AND ngayRoi BETWEEN ? AND ?", toSqlDate(prev.start), toSqlDate(prev.end));
         int actCur2   = count("SELECT COUNT(*) FROM HoatDong WHERE thoiGianBatDau BETWEEN ? AND ?", toSqlDate(cur.start), toSqlDate(cur.end));
         int actPrev2  = count("SELECT COUNT(*) FROM HoatDong WHERE thoiGianBatDau BETWEEN ? AND ?", toSqlDate(prev.start), toSqlDate(prev.end));
         int partCur2  = count("SELECT COUNT(*) FROM ThamGia WHERE ngayDangKy BETWEEN ? AND ?", toSqlDate(cur.start), toSqlDate(cur.end));
@@ -2138,7 +2153,7 @@ if(ni.idKhoiPhucHoiVien != null){
         List<Object[]> rows = new ArrayList<>();
         rows.add(new Object[]{"Tổng hội viên",   totalCur,  totalPrev,  pct(totalCur, totalPrev)+"%" , totalCur >= totalPrev ? "↑ Tăng" : "↓ Giảm"});
         rows.add(new Object[]{"Hội viên mới",    newCur2,   newPrev2,   pct(newCur2, newPrev2)+"%",    newCur2  >= newPrev2  ? "↑ Tăng" : "↓ Giảm"});
-        rows.add(new Object[]{"Hội viên đã rời", leftCur2,  "—",        "—",                           "—"});
+        rows.add(new Object[]{"Hội viên đã rời", leftCur2,  leftPrev2,  pct(leftCur2, leftPrev2)+"%", leftCur2 >= leftPrev2 ? "↑ Tăng" : "↓ Giảm"});
         rows.add(new Object[]{"Tổng hoạt động",  actCur2,   actPrev2,   pct(actCur2, actPrev2)+"%",    actCur2  >= actPrev2  ? "↑ Tăng" : "↓ Giảm"});
         rows.add(new Object[]{"Lượt tham gia",   partCur2,  partPrev2,  pct(partCur2, partPrev2)+"%",  partCur2 >= partPrev2 ? "↑ Tăng" : "↓ Giảm"});
         writeExcelSheet(pw, "Tổng hợp", period, headers, rows);
@@ -2339,11 +2354,20 @@ if(ni.idKhoiPhucHoiVien != null){
     }
 
     private int count(String sql, Object... params) {
-        try (Connection c = DatabaseHelper.getConnection();
-             PreparedStatement ps = c.prepareStatement(sql)) {
-            for (int i = 0; i < params.length; i++) ps.setObject(i+1, params[i]);
-            try (ResultSet rs = ps.executeQuery()) { if (rs.next()) return rs.getInt(1); }
-        } catch (Exception ignored) {}
-        return 0;
+    try (Connection c = DatabaseHelper.getConnection();
+         PreparedStatement ps = c.prepareStatement(sql)) {
+
+        for (int i = 0; i < params.length; i++) {
+            ps.setObject(i + 1, params[i]);
+        }
+
+        try (ResultSet rs = ps.executeQuery()) {
+            if (rs.next()) return rs.getInt(1);
+        }
+
+    } catch (Exception e) {
+        e.printStackTrace();
+    }
+    return 0;
     }
 }
